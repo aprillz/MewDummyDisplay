@@ -26,13 +26,13 @@ public static class DisplayCatalog
     /// <summary>Reads the current state of one display.</summary>
     public static DisplayInfo Describe(uint displayId)
     {
-        nint mode = CoreGraphicsInterop.CGDisplayCopyDisplayMode(displayId);
         int width = 0;
         int height = 0;
         int pixelWidth = 0;
         int pixelHeight = 0;
         double refreshRate = 0;
 
+        nint mode = CoreGraphicsInterop.CGDisplayCopyDisplayMode(displayId);
         if (mode != 0)
         {
             width = (int)CoreGraphicsInterop.CGDisplayModeGetWidth(mode);
@@ -41,6 +41,15 @@ public static class DisplayCatalog
             pixelHeight = (int)CoreGraphicsInterop.CGDisplayModeGetPixelHeight(mode);
             refreshRate = CoreGraphicsInterop.CGDisplayModeGetRefreshRate(mode);
             CoreGraphicsInterop.CGDisplayModeRelease(mode);
+        }
+        else if (CurrentModeViaPrivateApi(displayId) is DisplayMode current)
+        {
+            // The public API reports nothing for a display this process created.
+            width = current.Width;
+            height = current.Height;
+            pixelWidth = current.PixelWidth;
+            pixelHeight = current.PixelHeight;
+            refreshRate = current.RefreshRate;
         }
 
         return new DisplayInfo
@@ -76,6 +85,40 @@ public static class DisplayCatalog
     {
         IReadOnlyList<DisplayMode> published = ModesViaPublicApi(displayId);
         return published.Count > 0 ? published : ModesViaPrivateApi(displayId);
+    }
+
+    /// <summary>The display's active mode read through the private entry points.</summary>
+    public static DisplayMode? CurrentModeViaPrivateApi(uint displayId)
+    {
+        if (!CoreGraphicsServicesInterop.IsAvailable())
+        {
+            return null;
+        }
+
+        CoreGraphicsServicesInterop.CGSGetCurrentDisplayMode(displayId, out int index);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        CoreGraphicsServicesInterop.CGSGetDisplayModeDescriptionOfLength(
+            displayId, index, out CGSDisplayMode raw, Marshal.SizeOf<CGSDisplayMode>());
+        if (raw.Width == 0 || raw.Height == 0)
+        {
+            return null;
+        }
+
+        int scale = raw.Density >= 2 ? 2 : 1;
+        return new DisplayMode
+        {
+            Width = (int)raw.Width,
+            Height = (int)raw.Height,
+            PixelWidth = (int)raw.Width * scale,
+            PixelHeight = (int)raw.Height * scale,
+            RefreshRate = raw.Frequency,
+            ModeId = index,
+            Source = DisplayModeSource.Private,
+        };
     }
 
     /// <summary>Enumerates modes through the private entry points.</summary>

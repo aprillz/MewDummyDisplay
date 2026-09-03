@@ -20,6 +20,7 @@ internal static class Program
             "probe" => ProbeCommand.Run(args[1..]),
             "list" => ListCommand.Run(),
             "modes" => ModesCommand.Run(args[1..]),
+            "verify-modes" => VerifyModesCommand.Run(args[1..]),
             "setmode" => SetModeCommand.Run(args[1..]),
             "definitions" => DefinitionsCommand.Run(),
             "create" => CreateCommand.Run(args[1..]),
@@ -39,6 +40,7 @@ internal static class Program
               probe [--keep <seconds>]   Run the Phase 0 feasibility checks
               list                       List online displays
               modes <display-id>         List the modes a display offers
+              verify-modes [display-id]  Check the private mode struct layout on this OS
               setmode <display-id> <w> <h> [--hidpi]
                                          Switch a display to a mode
               definitions                List built-in aspect ratio definitions

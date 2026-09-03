@@ -27,9 +27,13 @@ public sealed class Dummy : IDisposable
 
     /// <summary>
     /// Whether CoreGraphics has finished registering the display. Registration is
-    /// asynchronous: right after creation the display reports no mode at all.
+    /// asynchronous: right after creation the display has no desktop rectangle yet.
     /// </summary>
-    public bool IsReady => DisplayCatalog.Describe(DisplayId).Width > 0;
+    /// <remarks>
+    /// Keyed off the bounds rather than the display mode. The public mode API reports
+    /// nothing for a display this process created, so it would never signal ready.
+    /// </remarks>
+    public bool IsReady => DisplayCatalog.Describe(DisplayId).Bounds.Width > 0;
 
     /// <summary>Blocks until the display registers, or the timeout expires.</summary>
     /// <remarks>
