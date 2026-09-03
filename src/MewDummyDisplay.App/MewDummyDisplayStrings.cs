@@ -33,9 +33,8 @@ public static class MewDummyDisplayStrings
     }
 
     // Menu structure
-    public static ObservableValue<string> MenuNoDummies { get; } = Define("No dummy displays");
-    public static ObservableValue<string> MenuAddHeading { get; } = Define("Add a dummy display");
-    public static ObservableValue<string> MenuRemoveAll { get; } = Define("Remove all dummy displays");
+    public static ObservableValue<string> MenuNoDummies { get; } = Define("No dummy displays yet");
+    public static ObservableValue<string> MenuHint { get; } = Define("Select a display to turn it on or off");
     public static ObservableValue<string> MenuQuit { get; } = Define("Quit MewDummyDisplay");
     public static ObservableValue<string> MenuUnsupported { get; } = Define("Virtual displays are unavailable on this system");
 
@@ -86,6 +85,9 @@ public static class MewDummyDisplayStrings
 
     // Dummy rows
     public static ObservableValue<string> DummyMirroring { get; } = Define("mirroring");
+    public static ObservableValue<string> DummyOff { get; } = Define("off");
+    public static ObservableValue<string> WindowConnect { get; } = Define("Turn on");
+    public static ObservableValue<string> WindowDisconnect { get; } = Define("Turn off");
     public static ObservableValue<string> DummyRemove { get; } = Define("Remove");
 
     // Aspect ratio kinds

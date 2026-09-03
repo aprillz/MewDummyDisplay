@@ -36,6 +36,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         _window = new Window()
             .Title(MewDummyDisplayStrings.WindowTitle.Value)
             .Resizable(760, 560)
+            .Padding(0)
             .Content(BuildShell());
 
         _window.Closed += () =>
@@ -234,6 +235,11 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
     private Border BuildDummyCard(Dummy dummy)
     {
+        if (!dummy.IsConnected)
+        {
+            return BuildDisconnectedCard(dummy);
+        }
+
         DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
 
         // Two filters. Only HiDPI modes, because supplying a Retina resolution is why a
@@ -296,6 +302,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     .Horizontal()
                     .Spacing(8)
                     .Children(
+                        IconButton(MewDummyDisplayStrings.WindowDisconnect.Value, Icons.Display(16), () => ToggleConnected(dummy)),
                         IconButton(
                             info.IsMirroring
                                 ? MewDummyDisplayStrings.WindowMirrorOff.Value
@@ -303,6 +310,35 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                             Icons.Mirror(),
                             () => ToggleMirror(dummy)),
                         IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
+    }
+
+    /// <summary>A dummy that is defined but turned off has no display to describe.</summary>
+    private Border BuildDisconnectedCard(Dummy dummy)
+        => Card(new StackPanel()
+            .Spacing(10)
+            .Children(
+                new StackPanel()
+                    .Horizontal()
+                    .Spacing(10)
+                    .Children(
+                        Icons.DisplayOutline(20),
+                        new StackPanel()
+                            .Spacing(2)
+                            .Children(
+                                new TextBlock().Text(dummy.Name).Bold(),
+                                Muted($"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}"))),
+                new StackPanel()
+                    .Horizontal()
+                    .Spacing(8)
+                    .Children(
+                        IconButton(MewDummyDisplayStrings.WindowConnect.Value, Icons.Display(16), () => ToggleConnected(dummy)),
+                        IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
+
+    private void ToggleConnected(Dummy dummy)
+    {
+        manager.Toggle(dummy);
+        Refresh();
+        onChanged();
     }
 
     // System displays

@@ -49,18 +49,13 @@ public sealed class DummyManager : IDisposable
     public static bool PumpRunLoopWhileWaiting { get; set; } = true;
 
     /// <summary>
-    /// Creates a dummy, or returns null when the system refuses it. Waits up to
-    /// <see cref="ReadyTimeout"/> for the display to register; check
-    /// <see cref="Dummy.IsReady"/> to tell whether it did.
+    /// Defines a dummy and connects it. Returns null when the system refuses the display.
+    /// Waits up to <see cref="ReadyTimeout"/> for registration; check
+    /// <see cref="Dummy.IsReady"/> to tell whether it finished.
     /// </summary>
     public Dummy? Create(DummySpec spec)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (WatchReconfiguration)
-        {
-            DisplayReconfigurationWatcher.Register();
-        }
-        WaitForTurn();
 
         if (!IsSupported)
         {
@@ -68,50 +63,102 @@ public sealed class DummyManager : IDisposable
                 $"Private virtual display API surface is missing: {string.Join(", ", MissingSurface)}");
         }
 
-        DummyDefinition definition = spec.Definition;
-        if (!definition.IsUsable)
+        if (!spec.Definition.IsUsable)
         {
             return null;
         }
 
         uint serial = spec.SerialNumber != 0 ? spec.SerialNumber : NewSerialNumber();
         DummySpec resolved = spec with { SerialNumber = serial };
-        string name = resolved.Name is { Length: > 0 } custom ? custom : BuildName(definition, serial);
+        string name = resolved.Name is { Length: > 0 } custom ? custom : BuildName(resolved.Definition, serial);
 
+        Dummy dummy = new(resolved, name, OpenDisplay);
+        if (!Connect(dummy))
+        {
+            dummy.Dispose();
+            return null;
+        }
+
+        _dummies.Add(dummy);
+        return dummy;
+    }
+
+    /// <summary>Connects a dummy that is currently disconnected.</summary>
+    public bool Connect(Dummy dummy)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (dummy.IsConnected)
+        {
+            return true;
+        }
+
+        if (WatchReconfiguration)
+        {
+            DisplayReconfigurationWatcher.Register();
+        }
+        WaitForTurn();
+
+        if (!dummy.Connect())
+        {
+            return false;
+        }
+
+        if (ReadyTimeout > TimeSpan.Zero)
+        {
+            dummy.WaitUntilReady(ReadyTimeout);
+        }
+        return true;
+    }
+
+    /// <summary>Disconnects a dummy, keeping its definition.</summary>
+    public void Disconnect(Dummy dummy)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (!dummy.IsConnected)
+        {
+            return;
+        }
+
+        WaitForTurn();
+        dummy.Disconnect();
+    }
+
+    /// <summary>Connects a disconnected dummy or disconnects a connected one.</summary>
+    public bool Toggle(Dummy dummy)
+    {
+        if (dummy.IsConnected)
+        {
+            Disconnect(dummy);
+            return false;
+        }
+        return Connect(dummy);
+    }
+
+    /// <summary>Builds the virtual display for a dummy. Passed to each dummy as its opener.</summary>
+    private VirtualDisplay? OpenDisplay(Dummy dummy)
+    {
+        DummyDefinition definition = dummy.Spec.Definition;
         (int maxWidth, int maxHeight) = definition.PixelsFor(definition.MaxMultiplier);
+        double refreshRate = dummy.Spec.RefreshRateOverride ?? DummySpec.FIXED_REFRESH_RATE;
 
-        double refreshRate = resolved.RefreshRateOverride ?? DummySpec.FIXED_REFRESH_RATE;
         List<VirtualDisplayMode> modes = [];
         foreach ((int width, int height) in definition.Resolutions())
         {
             modes.Add(new VirtualDisplayMode((uint)width, (uint)height, refreshRate));
         }
 
-        VirtualDisplayRequest request = new(
-            Name: name,
-            SerialNumber: serial,
+        return VirtualDisplayFactory.Create(new VirtualDisplayRequest(
+            Name: dummy.Name,
+            SerialNumber: dummy.SerialNumber,
             VendorId: DummySpec.VENDOR_ID,
             ProductId: BuildProductId(definition),
-            PhysicalSize: PhysicalSize(definition, resolved.DiagonalInches),
+            PhysicalSize: PhysicalSize(definition, dummy.Spec.DiagonalInches),
             MaxPixelsWide: (uint)maxWidth,
             MaxPixelsHigh: (uint)maxHeight,
             Modes: modes,
-            HiDpi: resolved.HiDpi);
-
-        VirtualDisplay? display = VirtualDisplayFactory.Create(request);
-        if (display is null)
-        {
-            return null;
-        }
-
-        Dummy dummy = new(resolved, display, name);
-        _dummies.Add(dummy);
-
-        if (ReadyTimeout > TimeSpan.Zero)
-        {
-            dummy.WaitUntilReady(ReadyTimeout);
-        }
-        return dummy;
+            HiDpi: dummy.Spec.HiDpi));
     }
 
     /// <summary>
@@ -127,11 +174,18 @@ public sealed class DummyManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         DummySpec spec = dummy.Spec with { Name = name };
+        bool wasConnected = dummy.IsConnected;
         if (!Remove(dummy))
         {
             return null;
         }
-        return Create(spec);
+
+        Dummy? replacement = Create(spec);
+        if (replacement is not null && !wasConnected)
+        {
+            Disconnect(replacement);
+        }
+        return replacement;
     }
 
     /// <summary>Releases one dummy.</summary>

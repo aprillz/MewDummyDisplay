@@ -5,6 +5,10 @@ namespace Aprillz.MewDummyDisplay.App;
 // Drives the real menu the way AppKit does, by sending the action selector to the target
 // with a menu item as sender. That exercises the whole path, from the row a person would
 // click through to the virtual display, with nobody clicking.
+//
+// Creation and removal moved to the window, so those go through the library the way the
+// window does. What the tray still owns, turning a display on and off, is driven through
+// the menu itself, because that dispatch is the fragile part worth proving.
 internal static class SelfTest
 {
     internal static bool Run(MenuBarController controller)
@@ -13,23 +17,32 @@ internal static class SelfTest
 
         passed &= Check("no dummies at startup", controller.Dummies.Count == 0);
 
-        passed &= Check("add row found and dispatched", Select(controller, "16:9 ("));
-        passed &= Check("one dummy created", controller.Dummies.Count == 1);
+        DummyDefinition definition = DummyDefinitionCatalog.Find("16:9")!;
+        Dummy? dummy = controller.Manager.Create(new DummySpec { Definition = definition, Name = "Self test" });
+        controller.Rebuild();
 
-        if (controller.Dummies.Count == 1)
+        passed &= Check("dummy created", dummy is not null && controller.Dummies.Count == 1);
+        if (dummy is null)
         {
-            Dummy dummy = controller.Dummies[0];
-            DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
-            Console.WriteLine($"  dummy {dummy.SerialNumber:X8} at {info.Width}x{info.Height}, {dummy.Modes().Count} modes");
-            passed &= Check("dummy has a desktop rectangle", info.Bounds.Width > 0);
-            passed &= Check("dummy reports modes", dummy.Modes().Count > 0);
-
-            passed &= Check("mirror row dispatched", Select(controller, "16:9  "));
-            passed &= Check("mirroring turned on", DisplayCatalog.Describe(dummy.DisplayId).IsMirroring);
-
-            passed &= Check("mirror row dispatched again", Select(controller, "16:9  "));
-            passed &= Check("mirroring turned off", !DisplayCatalog.Describe(dummy.DisplayId).IsMirroring);
+            Console.WriteLine("FAIL  could not create a dummy");
+            return false;
         }
+
+        DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
+        Console.WriteLine($"  {dummy.Name}: {info.Width}x{info.Height}, {dummy.Modes().Count} modes, " +
+            $"{definition.CommonResolutions().Count} offered in the picker");
+        passed &= Check("connected on creation", dummy.IsConnected);
+        passed &= Check("has a desktop rectangle", info.Bounds.Width > 0);
+        passed &= Check("reports modes", dummy.Modes().Count > 0);
+
+        passed &= Check("tray row dispatched", Select(controller, dummy.Name));
+        passed &= Check("turned off", !dummy.IsConnected);
+        passed &= Check("still defined while off", controller.Dummies.Count == 1);
+        passed &= Check("display id cleared while off", dummy.DisplayId == 0);
+
+        passed &= Check("tray row dispatched again", Select(controller, dummy.Name));
+        passed &= Check("turned back on", dummy.IsConnected);
+        passed &= Check("reports modes again", dummy.Modes().Count > 0);
 
         passed &= Check("manage row dispatched", Select(controller, MewDummyDisplayStrings.MenuManage.Value));
         passed &= Check("management window opened", controller.ManageWindow.IsOpen);
@@ -37,8 +50,9 @@ internal static class SelfTest
         controller.ManageWindow.CloseIfOpen();
         passed &= Check("management window closed", !controller.ManageWindow.IsOpen);
 
-        passed &= Check("remove all dispatched", Select(controller, MewDummyDisplayStrings.MenuRemoveAll.Value));
-        passed &= Check("no dummies left", controller.Dummies.Count == 0);
+        controller.Manager.Remove(dummy);
+        controller.Rebuild();
+        passed &= Check("removed", controller.Dummies.Count == 0);
 
         Console.WriteLine(passed ? "PASS  menu bar flow works end to end" : "FAIL  see the rows above");
         return passed;

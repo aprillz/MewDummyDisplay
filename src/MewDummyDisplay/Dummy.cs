@@ -2,17 +2,26 @@ using Aprillz.MewDummyDisplay.Interop;
 
 namespace Aprillz.MewDummyDisplay;
 
-/// <summary>A live dummy. Disposing it removes the display from the system.</summary>
+/// <summary>
+/// One dummy display. It stays defined while the manager holds it, and separately it is
+/// either connected, meaning a virtual display exists, or disconnected, meaning it does not.
+/// </summary>
+/// <remarks>
+/// The two states are separate on purpose. Disconnecting removes the display from the
+/// desktop without forgetting how it was configured, which is what a person wants when a
+/// dummy is temporarily in the way. Removing it is the destructive one.
+/// </remarks>
 public sealed class Dummy : IDisposable
 {
-    private readonly VirtualDisplay _display;
+    private readonly Func<Dummy, VirtualDisplay?> _connect;
+    private VirtualDisplay? _display;
     private bool _disposed;
 
-    internal Dummy(DummySpec spec, VirtualDisplay display, string name)
+    internal Dummy(DummySpec spec, string name, Func<Dummy, VirtualDisplay?> connect)
     {
         Spec = spec;
         Name = name;
-        _display = display;
+        _connect = connect;
     }
 
     public DummySpec Spec { get; }
@@ -22,8 +31,11 @@ public sealed class Dummy : IDisposable
 
     public uint SerialNumber => Spec.SerialNumber;
 
-    /// <summary>Display identifier assigned by macOS.</summary>
-    public uint DisplayId => _display.DisplayId;
+    /// <summary>Whether a virtual display currently exists for this dummy.</summary>
+    public bool IsConnected => _display is not null;
+
+    /// <summary>Display identifier assigned by macOS. Zero while disconnected.</summary>
+    public uint DisplayId => _display?.DisplayId ?? 0;
 
     /// <summary>
     /// Whether CoreGraphics has finished registering the display. Registration is
@@ -33,13 +45,11 @@ public sealed class Dummy : IDisposable
     /// Keyed off the bounds rather than the display mode. The public mode API reports
     /// nothing for a display this process created, so it would never signal ready.
     /// </remarks>
-    public bool IsReady => DisplayCatalog.Describe(DisplayId).Bounds.Width > 0;
+    public bool IsReady => IsConnected && DisplayCatalog.Describe(DisplayId).Bounds.Width > 0;
 
     /// <summary>Blocks until the display registers, or the timeout expires.</summary>
     /// <remarks>
-    /// Pumps the run loop rather than sleeping. CoreGraphics only refreshes this
-    /// process's copy of the display configuration when the reconfiguration
-    /// notification is delivered, and delivery needs a running run loop.
+    /// Pumps the run loop rather than sleeping, so queued notifications are delivered.
     /// </remarks>
     public bool WaitUntilReady(TimeSpan timeout)
     {
@@ -50,9 +60,10 @@ public sealed class Dummy : IDisposable
             {
                 return true;
             }
+
             if (DummyManager.PumpRunLoopWhileWaiting)
             {
-                Interop.RunLoop.PumpOnce();
+                RunLoop.PumpOnce();
             }
             else
             {
@@ -62,11 +73,34 @@ public sealed class Dummy : IDisposable
         return IsReady;
     }
 
-    /// <summary>Modes this dummy offers. Empty until the display finishes registering.</summary>
-    public IReadOnlyList<DisplayMode> Modes() => DisplayCatalog.Modes(DisplayId);
+    /// <summary>Modes this dummy offers. Empty while disconnected or still registering.</summary>
+    public IReadOnlyList<DisplayMode> Modes()
+        => IsConnected ? DisplayCatalog.Modes(DisplayId) : [];
 
     /// <summary>Switches this dummy to a specific mode.</summary>
-    public bool TrySetMode(DisplayMode mode) => DisplayCatalog.TrySetMode(DisplayId, mode);
+    public bool TrySetMode(DisplayMode mode)
+        => IsConnected && DisplayCatalog.TrySetMode(DisplayId, mode);
+
+    /// <summary>Creates the virtual display. Does nothing when already connected.</summary>
+    internal bool Connect()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (IsConnected)
+        {
+            return true;
+        }
+
+        _display = _connect(this);
+        return IsConnected;
+    }
+
+    /// <summary>Removes the virtual display, keeping the definition.</summary>
+    internal void Disconnect()
+    {
+        _display?.Dispose();
+        _display = null;
+    }
 
     public void Dispose()
     {
@@ -75,6 +109,6 @@ public sealed class Dummy : IDisposable
             return;
         }
         _disposed = true;
-        _display.Dispose();
+        Disconnect();
     }
 }
