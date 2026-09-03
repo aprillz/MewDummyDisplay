@@ -85,6 +85,53 @@ public sealed class DummyDefinitionTests
     }
 
     [TestMethod]
+    public void CommonResolutions_AreFewEnoughToPickFrom()
+    {
+        DummyDefinition definition = new("16:9", DummyDefinitionKind.Wide, 16, 9, 2);
+
+        IReadOnlyList<(int Width, int Height)> common = definition.CommonResolutions();
+
+        Assert.IsGreaterThan(100, definition.Resolutions().Count());
+        Assert.IsLessThanOrEqualTo(13, common.Count);
+        Assert.IsGreaterThanOrEqualTo(3, common.Count);
+    }
+
+    [TestMethod]
+    public void CommonResolutions_LandOnFamiliarSizes()
+    {
+        DummyDefinition definition = new("16:9", DummyDefinitionKind.Wide, 16, 9, 2);
+
+        IReadOnlyList<(int Width, int Height)> common = definition.CommonResolutions();
+
+        Assert.Contains((1920, 1080), common);
+        Assert.Contains((2560, 1440), common);
+        Assert.Contains((3840, 2160), common);
+    }
+
+    [TestMethod]
+    public void CommonResolutions_IncludeTheLargest()
+    {
+        foreach (DummyDefinition definition in DummyDefinitionCatalog.All())
+        {
+            IReadOnlyList<(int Width, int Height)> common = definition.CommonResolutions();
+            Assert.AreEqual(definition.PixelsFor(definition.MaxMultiplier), common[^1], definition.Id);
+        }
+    }
+
+    [TestMethod]
+    public void CommonResolutions_AreASubsetOfWhatTheDisplayOffers()
+    {
+        foreach (DummyDefinition definition in DummyDefinitionCatalog.All())
+        {
+            HashSet<(int, int)> all = [.. definition.Resolutions()];
+            foreach ((int Width, int Height) size in definition.CommonResolutions())
+            {
+                Assert.Contains(size, all, definition.Id);
+            }
+        }
+    }
+
+    [TestMethod]
     public void ExtremeAspectRatio_IsReportedUnusableRatherThanThrowing()
     {
         // Nothing fits between 720 and 8192 at this ratio, so the range inverts.

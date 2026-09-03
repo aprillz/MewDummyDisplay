@@ -14,6 +14,15 @@ public sealed record DummySpec
 
     public required DummyDefinition Definition { get; init; }
 
+    /// <summary>
+    /// Name macOS shows for the display. Null builds one from the ratio and serial.
+    /// </summary>
+    /// <remarks>
+    /// Fixed when the display is created: the descriptor carries it and there is no way to
+    /// change it afterwards, so renaming means recreating.
+    /// </remarks>
+    public string? Name { get; init; }
+
     /// <summary>A random value is assigned on creation when this is zero.</summary>
     public uint SerialNumber { get; init; }
 

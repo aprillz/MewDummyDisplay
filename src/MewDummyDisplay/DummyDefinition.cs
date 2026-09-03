@@ -64,6 +64,50 @@ public sealed class DummyDefinition
     public (int Width, int Height) PixelsFor(int multiplier)
         => (AspectWidth * MultiplierStep * multiplier, AspectHeight * MultiplierStep * multiplier);
 
+    /// <summary>
+    /// A short list of round resolutions, for showing to a person.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Resolutions"/> walks every multiplier, which for a 16:9 dummy is over two
+    /// hundred sizes and mostly noise like 1296x729. This keeps multipliers divisible by the
+    /// smallest stride that brings the count near <paramref name="targetCount"/>, which lands
+    /// on the familiar sizes: 1280x720, 1920x1080, 2560x1440, 3840x2160. The largest
+    /// resolution is always included, because it is the reason to pick a definition at all.
+    /// </remarks>
+    public IReadOnlyList<(int Width, int Height)> CommonResolutions(int targetCount = 12)
+    {
+        if (!IsUsable)
+        {
+            return [];
+        }
+
+        foreach (int stride in _strides)
+        {
+            List<int> multipliers = [];
+            for (int multiplier = MinMultiplier; multiplier <= MaxMultiplier; multiplier++)
+            {
+                if (multiplier % stride == 0)
+                {
+                    multipliers.Add(multiplier);
+                }
+            }
+
+            if (multipliers.Count >= 3 && multipliers.Count <= targetCount)
+            {
+                if (multipliers[^1] != MaxMultiplier)
+                {
+                    multipliers.Add(MaxMultiplier);
+                }
+                return [.. multipliers.Select(PixelsFor)];
+            }
+        }
+
+        return [.. Resolutions()];
+    }
+
+    /// <summary>Strides tried in order, chosen so the kept multipliers stay round numbers.</summary>
+    private static readonly int[] _strides = [1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 128, 160, 200];
+
     /// <summary>Every resolution this definition can produce, in ascending order.</summary>
     public IEnumerable<(int Width, int Height)> Resolutions()
     {

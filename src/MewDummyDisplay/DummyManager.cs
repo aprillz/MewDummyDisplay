@@ -76,7 +76,7 @@ public sealed class DummyManager : IDisposable
 
         uint serial = spec.SerialNumber != 0 ? spec.SerialNumber : NewSerialNumber();
         DummySpec resolved = spec with { SerialNumber = serial };
-        string name = BuildName(definition, serial);
+        string name = resolved.Name is { Length: > 0 } custom ? custom : BuildName(definition, serial);
 
         (int maxWidth, int maxHeight) = definition.PixelsFor(definition.MaxMultiplier);
 
@@ -112,6 +112,26 @@ public sealed class DummyManager : IDisposable
             dummy.WaitUntilReady(ReadyTimeout);
         }
         return dummy;
+    }
+
+    /// <summary>
+    /// Renames a dummy by recreating it. Returns the replacement, or null if it failed.
+    /// </summary>
+    /// <remarks>
+    /// The name lives in the descriptor and is fixed once the display exists, so the only
+    /// way to change it is to build a new display. The serial is carried over so the
+    /// replacement is recognisable as the same dummy.
+    /// </remarks>
+    public Dummy? Rename(Dummy dummy, string name)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        DummySpec spec = dummy.Spec with { Name = name };
+        if (!Remove(dummy))
+        {
+            return null;
+        }
+        return Create(spec);
     }
 
     /// <summary>Releases one dummy.</summary>

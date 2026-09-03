@@ -55,6 +55,35 @@ public static class MewDummyDisplayStrings
     public static ObservableValue<string> WindowRemove { get; } = Define("Remove");
     public static ObservableValue<string> WindowClose { get; } = Define("Close");
 
+    // Navigation
+    public static ObservableValue<string> PageDummies { get; } = Define("Dummy displays");
+    public static ObservableValue<string> PageSystem { get; } = Define("System displays");
+    public static ObservableValue<string> PageAbout { get; } = Define("About");
+
+    // Create form
+    public static ObservableValue<string> WindowName { get; } = Define("Name");
+    public static ObservableValue<string> WindowNamePlaceholder { get; } = Define("Leave empty to name it automatically");
+    public static ObservableValue<string> WindowRename { get; } = Define("Rename");
+    public static ObservableValue<string> WindowRenameHint { get; } = Define("Renaming recreates the display, because macOS fixes the name when it is created.");
+
+    // System displays page
+    public static ObservableValue<string> SystemBuiltIn { get; } = Define("Built in");
+    public static ObservableValue<string> SystemMain { get; } = Define("Main");
+    public static ObservableValue<string> SystemVirtual { get; } = Define("Virtual");
+    public static ObservableValue<string> SystemModes { get; } = Define("modes");
+    public static ObservableValue<string> SystemRefresh { get; } = Define("Refresh");
+
+    // About page
+    public static ObservableValue<string> AboutSummary { get; } = Define(
+        "Creates virtual displays on macOS so any monitor can use a HiDPI resolution.");
+    public static ObservableValue<string> AboutLicense { get; } = Define("MIT licensed. Copyright (c) 2026 Aprillz.");
+    public static ObservableValue<string> AboutReference { get; } = Define(
+        "Written with reference to BetterDummy 1.0.11, also MIT. See the NOTICE file in the bundle.");
+    public static ObservableValue<string> AboutTheme { get; } = Define("Appearance");
+    public static ObservableValue<string> AboutThemeSystem { get; } = Define("System");
+    public static ObservableValue<string> AboutThemeLight { get; } = Define("Light");
+    public static ObservableValue<string> AboutThemeDark { get; } = Define("Dark");
+
     // Dummy rows
     public static ObservableValue<string> DummyMirroring { get; } = Define("mirroring");
     public static ObservableValue<string> DummyRemove { get; } = Define("Remove");

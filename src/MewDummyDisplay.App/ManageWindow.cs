@@ -3,24 +3,25 @@ using Aprillz.MewUI.Controls;
 
 namespace Aprillz.MewDummyDisplay.App;
 
-/// <summary>The window where dummies are created, resized and removed.</summary>
+/// <summary>The window where dummies are created, named, resized and removed.</summary>
 /// <remarks>
 /// Everything denser than a toggle lives here rather than in the menu bar. Resolution is
 /// the clearest example: a dummy offers hundreds of modes, which a flat menu cannot show.
 ///
-/// The list is rebuilt explicitly rather than bound to an ItemsSource. Rows carry their
-/// own editors, and rebuilding an ItemsSource under an active editor replaces its
-/// container and loses focus. Below roughly a hundred rows the explicit rebuild is the
-/// simpler and safer choice; past that, move to ItemsSource with a typed ItemTemplate so
-/// containers are recycled.
+/// Dummy rows are rebuilt explicitly rather than bound to an ItemsSource. Rows carry their
+/// own editors, and swapping ItemsSource under an active editor replaces its container and
+/// loses focus. Below roughly a hundred rows the explicit rebuild is the simpler and safer
+/// choice; past that, move to ItemsSource with a typed ItemTemplate so containers recycle.
 /// </remarks>
 internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 {
     private readonly IReadOnlyList<DummyDefinition> _definitions = DummyDefinitionCatalog.All();
     private Window? _window;
     private StackPanel? _dummyList;
+    private StackPanel? _systemList;
     private ComboBox? _definitionPicker;
     private CheckBox? _hiDpiToggle;
+    private TextBox? _nameBox;
 
     /// <summary>Shows the window, bringing an already open one forward.</summary>
     internal void Show()
@@ -34,76 +35,156 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         _window = new Window()
             .Title(MewDummyDisplayStrings.WindowTitle.Value)
-            .Resizable(560, 520)
-            .Content(BuildContent());
+            .Resizable(760, 560)
+            .Content(BuildShell());
 
         _window.Closed += () =>
         {
             _window = null;
             _dummyList = null;
+            _systemList = null;
         };
 
         _window.Show();
-        RefreshDummyList();
+        Refresh();
     }
 
     /// <summary>Whether the window is currently open.</summary>
     internal bool IsOpen => _window is not null;
 
-    /// <summary>Rows currently shown. Lets a caller confirm what was built.</summary>
+    /// <summary>Rows currently shown on the dummy page.</summary>
     internal int RowCount => _dummyList?.Count ?? 0;
 
     /// <summary>Closes the window if it is open.</summary>
     internal void CloseIfOpen() => _window?.Close();
 
-    /// <summary>Rebuilds the list if the window is open. Safe to call when it is not.</summary>
+    /// <summary>Rebuilds both lists if the window is open.</summary>
     internal void Refresh()
     {
-        if (_window is not null)
-        {
-            RefreshDummyList();
-        }
+        RefreshDummies();
+        RefreshSystemDisplays();
     }
 
-    private StackPanel BuildContent()
-        => new StackPanel()
-            .Padding(20)
+    private NavigationView BuildShell()
+    {
+        NavigationPage[] pages =
+        [
+            new(MewDummyDisplayStrings.PageDummies.Value, Icons.Display(), BuildDummyPage),
+            new(MewDummyDisplayStrings.PageSystem.Value, Icons.Sliders(), BuildSystemPage),
+            new(MewDummyDisplayStrings.PageAbout.Value, Icons.Info(), BuildAboutPage),
+        ];
+
+        NavigationView navigation = new()
+        {
+            PaneWidth = 190,
+            PaneDisplayMode = PaneDisplayMode.Inline,
+        };
+
+        navigation.Items(
+            pages,
+            page => page.Title,
+            icon: page => page.Icon,
+            content: page => new Border().Padding(24).Child(page.Build()));
+        navigation.SelectedIndex = 0;
+
+        return navigation;
+    }
+
+    // Pages
+
+    private UIElement BuildDummyPage()
+        => new DockPanel()
             .Spacing(16)
             .Children(
-                new TextBlock().Text(MewDummyDisplayStrings.WindowCreateHeading.Value),
-                new StackPanel()
-                    .Orientation(Orientation.Horizontal)
-                    .Spacing(10)
-                    .Children(
-                        new TextBlock().Text(MewDummyDisplayStrings.WindowAspectRatio.Value),
-                        new ComboBox()
-                            .Ref(out ComboBox picker)
-                            .Width(220)
-                            .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
-                            .SelectedIndex(0),
-                        new CheckBox()
-                            .Ref(out CheckBox hiDpi)
-                            .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
-                            .IsChecked(true),
-                        new Button()
-                            .Content(MewDummyDisplayStrings.WindowCreate.Value)
-                            .OnClick(CreateDummy)),
-                new Separator(),
-                new TextBlock().Text(MewDummyDisplayStrings.WindowExisting.Value),
+                Heading(MewDummyDisplayStrings.WindowCreateHeading.Value).DockTop(),
+                BuildCreateForm().DockTop(),
+                Heading(MewDummyDisplayStrings.WindowExisting.Value).DockTop(),
                 new ScrollViewer()
-                    .Height(300)
-                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)),
+                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)))
+            .Also(() => _dummyList = list);
+
+    private UIElement BuildSystemPage()
+        => new DockPanel()
+            .Spacing(16)
+            .Children(
+                Heading(MewDummyDisplayStrings.PageSystem.Value).DockTop(),
                 new StackPanel()
-                    .Orientation(Orientation.Horizontal)
-                    .Children(new Button().Content(MewDummyDisplayStrings.WindowClose.Value).OnClick(Close)))
+                    .Horizontal()
+                    .DockTop()
+                    .Children(new Button()
+                        .Content(MewDummyDisplayStrings.SystemRefresh.Value)
+                        .OnClick(RefreshSystemDisplays)),
+                new ScrollViewer()
+                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)))
+            .Also(() => _systemList = list);
+
+    private UIElement BuildAboutPage()
+        => new StackPanel()
+            .Spacing(14)
+            .Children(
+                new StackPanel()
+                    .Horizontal()
+                    .Spacing(12)
+                    .Children(
+                        Icons.Display(32),
+                        new StackPanel()
+                            .Spacing(2)
+                            .Children(
+                                new TextBlock().Text(MewDummyDisplayStrings.WindowTitle.Value).FontSize(20).Bold(),
+                                Muted(MewDummyDisplayStrings.AboutSummary.Value))),
+                new Separator(),
+                Muted(MewDummyDisplayStrings.AboutLicense.Value),
+                Muted(MewDummyDisplayStrings.AboutReference.Value),
+                new Separator(),
+                new TextBlock().Text(MewDummyDisplayStrings.AboutTheme.Value).Bold(),
+                new StackPanel()
+                    .Horizontal()
+                    .Spacing(8)
+                    .Children(
+                        new Button().Content(MewDummyDisplayStrings.AboutThemeSystem.Value)
+                            .OnClick(() => Application.Current.SetThemeMode(ThemeVariant.System)),
+                        new Button().Content(MewDummyDisplayStrings.AboutThemeLight.Value)
+                            .OnClick(() => Application.Current.SetThemeMode(ThemeVariant.Light)),
+                        new Button().Content(MewDummyDisplayStrings.AboutThemeDark.Value)
+                            .OnClick(() => Application.Current.SetThemeMode(ThemeVariant.Dark))));
+
+    // Create form
+
+    private UIElement BuildCreateForm()
+        => Card(new Grid()
+            .Columns("110,*,Auto")
+            .Rows("Auto,Auto,Auto")
+            .Spacing(10)
+            .Children(
+                new TextBlock().Text(MewDummyDisplayStrings.WindowAspectRatio.Value).CenterVertical(),
+                new ComboBox()
+                    .Ref(out ComboBox picker)
+                    .Column(1)
+                    .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
+                    .SelectedIndex(0),
+                new CheckBox()
+                    .Ref(out CheckBox hiDpi)
+                    .Column(2)
+                    .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
+                    .IsChecked(true)
+                    .CenterVertical(),
+                new TextBlock().Text(MewDummyDisplayStrings.WindowName.Value).Row(1).CenterVertical(),
+                new TextBox()
+                    .Ref(out TextBox nameBox)
+                    .Row(1)
+                    .Column(1)
+                    .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value),
+                new Button()
+                    .Row(1)
+                    .Column(2)
+                    .Content(MewDummyDisplayStrings.WindowCreate.Value)
+                    .OnClick(CreateDummy)))
             .Also(() =>
             {
                 _definitionPicker = picker;
                 _hiDpiToggle = hiDpi;
-                _dummyList = list;
+                _nameBox = nameBox;
             });
-
-    private void Close() => _window?.Close();
 
     private void CreateDummy()
     {
@@ -112,18 +193,25 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             return;
         }
 
-        int index = Math.Max(0, _definitionPicker.SelectedIndex);
         manager.Create(new DummySpec
         {
-            Definition = _definitions[index],
+            Definition = _definitions[Math.Max(0, _definitionPicker.SelectedIndex)],
             HiDpi = _hiDpiToggle.IsChecked == true,
+            Name = string.IsNullOrWhiteSpace(_nameBox?.Text) ? null : _nameBox.Text.Trim(),
         });
 
-        RefreshDummyList();
+        if (_nameBox is not null)
+        {
+            _nameBox.Text = "";
+        }
+
+        Refresh();
         onChanged();
     }
 
-    private void RefreshDummyList()
+    // Dummy list
+
+    private void RefreshDummies()
     {
         if (_dummyList is null)
         {
@@ -134,63 +222,135 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         if (manager.Dummies.Count == 0)
         {
-            _dummyList.Add(new TextBlock().Text(MewDummyDisplayStrings.WindowNone.Value));
+            _dummyList.Add(Muted(MewDummyDisplayStrings.WindowNone.Value));
             return;
         }
 
         foreach (Dummy dummy in manager.Dummies)
         {
-            _dummyList.Add(BuildDummyRow(dummy));
+            _dummyList.Add(BuildDummyCard(dummy));
         }
     }
 
-    private Border BuildDummyRow(Dummy dummy)
+    private Border BuildDummyCard(Dummy dummy)
     {
         DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
 
-        // Only the HiDPI modes are offered: a dummy exists to provide a Retina resolution,
-        // and listing both variants of every size would double an already long list.
+        // Two filters. Only HiDPI modes, because supplying a Retina resolution is why a
+        // dummy exists. And only the round sizes from the definition: the display really
+        // offers every multiplier, which is hundreds of entries like 1296x729 that nobody
+        // wants to scroll past. The full set stays available in System Settings.
+        HashSet<(int, int)> common = [.. dummy.Spec.Definition.CommonResolutions()];
         List<DisplayMode> modes = [.. dummy.Modes()
             .Where(mode => mode.IsHiDpi)
-            .DistinctBy(mode => (mode.Width, mode.Height))];
+            .Where(mode => common.Contains((mode.Width, mode.Height)))
+            .DistinctBy(mode => (mode.Width, mode.Height))
+            .OrderBy(mode => (long)mode.Width * mode.Height)];
         if (modes.Count == 0)
         {
-            modes = [.. dummy.Modes().DistinctBy(mode => (mode.Width, mode.Height))];
+            modes = [.. dummy.Modes()
+                .DistinctBy(mode => (mode.Width, mode.Height))
+                .OrderBy(mode => (long)mode.Width * mode.Height)];
         }
 
-        int currentIndex = modes.FindIndex(mode => mode.Width == info.Width && mode.Height == info.Height);
+        int current = modes.FindIndex(mode => mode.Width == info.Width && mode.Height == info.Height);
 
-        return new Border()
-            .Padding(12)
-            .Child(new StackPanel()
-                .Spacing(8)
-                .Children(
-                    new TextBlock().Text(
-                        $"{dummy.Spec.Definition.Id}  #{dummy.SerialNumber:X8}  " +
-                        $"{info.Width}x{info.Height}" +
-                        (info.IsHiDpi ? $" HiDPI ({info.PixelWidth}x{info.PixelHeight})" : "")),
-                    new StackPanel()
-                        .Orientation(Orientation.Horizontal)
-                        .Spacing(8)
-                        .Children(
-                            new TextBlock().Text(MewDummyDisplayStrings.WindowResolution.Value),
-                            new ComboBox()
-                                .Ref(out ComboBox resolutionPicker)
-                                .Width(200)
-                                .Items([.. modes.Select(mode => $"{mode.Width}x{mode.Height}")])
-                                .SelectedIndex(Math.Max(0, currentIndex)),
-                            new Button()
-                                .Content(MewDummyDisplayStrings.WindowApply.Value)
-                                .OnClick(() => ApplyResolution(dummy, modes, resolutionPicker.SelectedIndex)),
-                            new Button()
-                                .Content(info.IsMirroring
-                                    ? MewDummyDisplayStrings.WindowMirrorOff.Value
-                                    : MewDummyDisplayStrings.WindowMirrorOn.Value)
-                                .OnClick(() => ToggleMirror(dummy)),
-                            new Button()
-                                .Content(MewDummyDisplayStrings.WindowRemove.Value)
-                                .OnClick(() => Remove(dummy)))));
+        return Card(new StackPanel()
+            .Spacing(10)
+            .Children(
+                new StackPanel()
+                    .Horizontal()
+                    .Spacing(10)
+                    .Children(
+                        Icons.Display(20),
+                        new StackPanel()
+                            .Spacing(2)
+                            .Children(
+                                new TextBlock().Text(dummy.Name).Bold(),
+                                Muted($"{dummy.Spec.Definition.Id}  {info.Width}x{info.Height}" +
+                                    (info.IsHiDpi ? $"  HiDPI {info.PixelWidth}x{info.PixelHeight}" : "") +
+                                    (info.IsMirroring ? $"  {MewDummyDisplayStrings.DummyMirroring.Value}" : "")))),
+                new Grid()
+                    .Columns("Auto,*,Auto")
+                    .Rows("Auto,Auto")
+                    .Spacing(8)
+                    .Children(
+                        new TextBlock().Text(MewDummyDisplayStrings.WindowResolution.Value).CenterVertical(),
+                        new ComboBox()
+                            .Ref(out ComboBox resolution)
+                            .Column(1)
+                            .Items([.. modes.Select(mode => $"{mode.Width} x {mode.Height}")])
+                            .SelectedIndex(Math.Max(0, current)),
+                        new Button()
+                            .Column(2)
+                            .Content(MewDummyDisplayStrings.WindowApply.Value)
+                            .OnClick(() => ApplyResolution(dummy, modes, resolution.SelectedIndex)),
+                        new TextBlock().Text(MewDummyDisplayStrings.WindowName.Value).Row(1).CenterVertical(),
+                        new TextBox().Ref(out TextBox rename).Row(1).Column(1).Text(dummy.Name),
+                        new Button()
+                            .Row(1)
+                            .Column(2)
+                            .Content(MewDummyDisplayStrings.WindowRename.Value)
+                            .OnClick(() => RenameDummy(dummy, rename.Text))),
+                new StackPanel()
+                    .Horizontal()
+                    .Spacing(8)
+                    .Children(
+                        IconButton(
+                            info.IsMirroring
+                                ? MewDummyDisplayStrings.WindowMirrorOff.Value
+                                : MewDummyDisplayStrings.WindowMirrorOn.Value,
+                            Icons.Mirror(),
+                            () => ToggleMirror(dummy)),
+                        IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
     }
+
+    // System displays
+
+    private void RefreshSystemDisplays()
+    {
+        if (_systemList is null)
+        {
+            return;
+        }
+
+        _systemList.Clear();
+
+        foreach (DisplayInfo display in DisplayCatalog.Online())
+        {
+            List<string> tags = [];
+            if (display.IsBuiltIn)
+            {
+                tags.Add(MewDummyDisplayStrings.SystemBuiltIn.Value);
+            }
+            if (display.IsMain)
+            {
+                tags.Add(MewDummyDisplayStrings.SystemMain.Value);
+            }
+            if (display.VendorId == DummySpec.VENDOR_ID)
+            {
+                tags.Add(MewDummyDisplayStrings.SystemVirtual.Value);
+            }
+
+            int modeCount = DisplayCatalog.Modes(display.DisplayId).Count;
+
+            _systemList.Add(Card(new StackPanel()
+                .Horizontal()
+                .Spacing(10)
+                .Children(
+                    Icons.DisplayOutline(20),
+                    new StackPanel()
+                        .Spacing(2)
+                        .Children(
+                            new TextBlock().Text($"Display {display.DisplayId}" +
+                                (tags.Count > 0 ? $"  ({string.Join(", ", tags)})" : "")).Bold(),
+                            Muted($"{display.Width}x{display.Height}" +
+                                (display.IsHiDpi ? $"  HiDPI {display.PixelWidth}x{display.PixelHeight}" : "") +
+                                $"  {display.RefreshRate:0}Hz  {modeCount} {MewDummyDisplayStrings.SystemModes.Value}")))));
+        }
+    }
+
+    // Actions
 
     private void ApplyResolution(Dummy dummy, List<DisplayMode> modes, int index)
     {
@@ -200,7 +360,19 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         }
 
         dummy.TrySetMode(modes[index]);
-        RefreshDummyList();
+        Refresh();
+        onChanged();
+    }
+
+    private void RenameDummy(Dummy dummy, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim() == dummy.Name)
+        {
+            return;
+        }
+
+        manager.Rename(dummy, name.Trim());
+        Refresh();
         onChanged();
     }
 
@@ -220,14 +392,43 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             }
         }
 
-        RefreshDummyList();
+        Refresh();
         onChanged();
     }
 
     private void Remove(Dummy dummy)
     {
         manager.Remove(dummy);
-        RefreshDummyList();
+        Refresh();
         onChanged();
     }
+
+    // Shared visuals
+
+    private static TextBlock Heading(string text) => new TextBlock().Text(text).FontSize(16).Bold();
+
+    private static TextBlock Muted(string text)
+        => new TextBlock().Text(text).WithTheme((theme, block) => block.Foreground(theme.Palette.DisabledText));
+
+    private static Border Card(UIElement content)
+        => new Border()
+            .Padding(14)
+            .WithTheme((theme, border) =>
+            {
+                border.Background(theme.Palette.ControlBackground);
+                border.BorderBrush(theme.Palette.ControlBorder);
+                border.BorderThickness(theme.Metrics.ControlBorderThickness);
+                border.CornerRadius(theme.Metrics.ControlCornerRadius);
+            })
+            .Child(content);
+
+    private static Button IconButton(string text, Element icon, Action onClick)
+        => new Button()
+            .OnClick(onClick)
+            .Content(new StackPanel()
+                .Horizontal()
+                .Spacing(6)
+                .Children(icon, new TextBlock().Text(text).CenterVertical()));
+
+    private sealed record NavigationPage(string Title, Element Icon, Func<UIElement> Build);
 }
