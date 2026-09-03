@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>mdd</AssemblyName>
+    <RootNamespace>Aprillz.MewDummyDisplay.Cli</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">osx-arm64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MewDummyDisplay/MewDummyDisplay.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Aprillz.MewDummyDisplay</AssemblyName>
+    <RootNamespace>Aprillz.MewDummyDisplay</RootNamespace>
+    <PackageId>Aprillz.MewDummyDisplay</PackageId>
+    <Description>macOS virtual dummy display management library</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aprillz.MewDummyDisplay.Tests" />
+  </ItemGroup>
+
+</Project>

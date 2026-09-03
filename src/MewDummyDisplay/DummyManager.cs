@@ -1,0 +1,188 @@
+using Aprillz.MewDummyDisplay.Interop;
+
+namespace Aprillz.MewDummyDisplay;
+
+/// <summary>Owns the creation and lifetime of dummies. Main entry point of the library.</summary>
+/// <remarks>
+/// Disposing releases every live dummy. This is the last line of defense against
+/// leaving orphaned displays behind when the process exits.
+/// </remarks>
+public sealed class DummyManager : IDisposable
+{
+    /// <summary>
+    /// Smallest gap enforced between two display operations.
+    /// </summary>
+    /// <remarks>
+    /// Creating and releasing displays back to back makes CoreGraphics report stale or
+    /// empty values and delays teardown well past twenty seconds. The cause sits in the
+    /// window server rather than in this code, so the manager paces itself instead of
+    /// trying to fix it.
+    /// </remarks>
+    public static readonly TimeSpan MinimumOperationGap = TimeSpan.FromMilliseconds(750);
+
+    /// <summary>How long <see cref="Create"/> waits for a new display to register.</summary>
+    public static readonly TimeSpan DefaultReadyTimeout = TimeSpan.FromSeconds(5);
+
+    private readonly Lock _gate = new();
+    private readonly List<Dummy> _dummies = [];
+    private DateTime _lastOperationUtc = DateTime.MinValue;
+    private bool _disposed;
+
+    /// <summary>Time <see cref="Create"/> waits for registration. Zero returns immediately.</summary>
+    public TimeSpan ReadyTimeout { get; init; } = DefaultReadyTimeout;
+
+    /// <summary>Classes and selectors the surface check could not find. Empty means dummies can be created.</summary>
+    public static IReadOnlyList<string> MissingSurface { get; } = SurfaceCheck.FindMissing();
+
+    public static bool IsSupported => MissingSurface.Count == 0;
+
+    public IReadOnlyList<Dummy> Dummies => _dummies;
+
+    /// <summary>
+    /// Whether to subscribe to display reconfiguration notifications before creating.
+    /// Under investigation: the subscription may be what stops this process from
+    /// reading back the modes of displays it created.
+    /// </summary>
+    public static bool WatchReconfiguration { get; set; } = true;
+
+    /// <summary>Whether waiting for readiness pumps the run loop instead of sleeping.</summary>
+    public static bool PumpRunLoopWhileWaiting { get; set; } = true;
+
+    /// <summary>
+    /// Creates a dummy, or returns null when the system refuses it. Waits up to
+    /// <see cref="ReadyTimeout"/> for the display to register; check
+    /// <see cref="Dummy.IsReady"/> to tell whether it did.
+    /// </summary>
+    public Dummy? Create(DummySpec spec)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (WatchReconfiguration)
+        {
+            DisplayReconfigurationWatcher.Register();
+        }
+        WaitForTurn();
+
+        if (!IsSupported)
+        {
+            throw new PlatformNotSupportedException(
+                $"Private virtual display API surface is missing: {string.Join(", ", MissingSurface)}");
+        }
+
+        DummyDefinition definition = spec.Definition;
+        if (!definition.IsUsable)
+        {
+            return null;
+        }
+
+        uint serial = spec.SerialNumber != 0 ? spec.SerialNumber : NewSerialNumber();
+        DummySpec resolved = spec with { SerialNumber = serial };
+        string name = BuildName(definition, serial);
+
+        (int maxWidth, int maxHeight) = definition.PixelsFor(definition.MaxMultiplier);
+
+        double refreshRate = resolved.RefreshRateOverride ?? DummySpec.FIXED_REFRESH_RATE;
+        List<VirtualDisplayMode> modes = [];
+        foreach ((int width, int height) in definition.Resolutions())
+        {
+            modes.Add(new VirtualDisplayMode((uint)width, (uint)height, refreshRate));
+        }
+
+        VirtualDisplayRequest request = new(
+            Name: name,
+            SerialNumber: serial,
+            VendorId: DummySpec.VENDOR_ID,
+            ProductId: BuildProductId(definition),
+            PhysicalSize: PhysicalSize(definition, resolved.DiagonalInches),
+            MaxPixelsWide: (uint)maxWidth,
+            MaxPixelsHigh: (uint)maxHeight,
+            Modes: modes,
+            HiDpi: resolved.HiDpi);
+
+        VirtualDisplay? display = VirtualDisplayFactory.Create(request);
+        if (display is null)
+        {
+            return null;
+        }
+
+        Dummy dummy = new(resolved, display, name);
+        _dummies.Add(dummy);
+
+        if (ReadyTimeout > TimeSpan.Zero)
+        {
+            dummy.WaitUntilReady(ReadyTimeout);
+        }
+        return dummy;
+    }
+
+    /// <summary>Releases one dummy.</summary>
+    public bool Remove(Dummy dummy)
+    {
+        if (!_dummies.Remove(dummy))
+        {
+            return false;
+        }
+
+        WaitForTurn();
+        dummy.Dispose();
+        return true;
+    }
+
+    /// <summary>Sleeps until enough time has passed since the previous display operation.</summary>
+    private void WaitForTurn()
+    {
+        lock (_gate)
+        {
+            TimeSpan elapsed = DateTime.UtcNow - _lastOperationUtc;
+            if (elapsed < MinimumOperationGap)
+            {
+                Thread.Sleep(MinimumOperationGap - elapsed);
+            }
+            _lastOperationUtc = DateTime.UtcNow;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+
+        foreach (Dummy dummy in _dummies)
+        {
+            dummy.Dispose();
+        }
+        _dummies.Clear();
+    }
+
+    private static string BuildName(DummyDefinition definition, uint serial)
+        => $"{DummySpec.NAME_PREFIX} {definition.Id} #{serial:X8}";
+
+    private static uint NewSerialNumber()
+    {
+        uint serial = 0;
+        while (serial == 0)
+        {
+            serial = (uint)Random.Shared.NextInt64(1, uint.MaxValue);
+        }
+        return serial;
+    }
+
+    private static uint BuildProductId(DummyDefinition definition)
+    {
+        uint width = (uint)Math.Min(definition.AspectWidth - 1, 255);
+        uint height = (uint)Math.Min(definition.AspectHeight - 1, 255);
+        return (width * 256) + height;
+    }
+
+    private static CGSize PhysicalSize(DummyDefinition definition, double diagonalInches)
+    {
+        double diagonalMillimeters = diagonalInches * 25.4;
+        double aspectDiagonal = Math.Sqrt(
+            ((double)definition.AspectWidth * definition.AspectWidth) +
+            ((double)definition.AspectHeight * definition.AspectHeight));
+        double ratio = diagonalMillimeters / aspectDiagonal;
+        return new CGSize(definition.AspectWidth * ratio, definition.AspectHeight * ratio);
+    }
+}

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MewDummyDisplay/MewDummyDisplay.csproj" />
+  <Project Path="MewDummyDisplay.Cli/MewDummyDisplay.Cli.csproj" />
+</Solution>
