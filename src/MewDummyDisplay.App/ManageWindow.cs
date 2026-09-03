@@ -26,6 +26,11 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// <summary>Shows the window, bringing an already open one forward.</summary>
     internal void Show()
     {
+        // An accessory application is not brought forward by opening a window, so the app
+        // is activated first. Without it the window opens behind whatever had focus, which
+        // read as the first click doing nothing.
+        Interop.AppKitInterop.ActivateApplication();
+
         if (_window is not null)
         {
             _window.Show();
@@ -47,6 +52,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         };
 
         _window.Show();
+        _window.Activate();
         Refresh();
     }
 

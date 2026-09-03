@@ -49,8 +49,19 @@ internal static class Program
                     Console.WriteLine($"supported     : {DummyManager.IsSupported}");
                     Console.WriteLine($"windows open  : {Application.Current.AllWindows.Count}");
                     Console.WriteLine($"policy        : {AppKitInterop.CurrentActivationPolicy()}");
-                    exitCode = SelfTest.Run(controller) ? 0 : 1;
-                    Application.Shutdown();
+
+                    // Run once startup has finished rather than inside it. Menu rows post
+                    // work to the dispatcher, and that queue only drains in the ordinary
+                    // loop, so a test running inside OnStartup would never see the result.
+                    MenuBarController target = controller;
+                    DispatcherTimer timer = new(TimeSpan.FromMilliseconds(250));
+                    timer.Tick += () =>
+                    {
+                        timer.Stop();
+                        exitCode = SelfTest.Run(target) ? 0 : 1;
+                        Application.Shutdown();
+                    };
+                    timer.Start();
                 }
             })
             .Run();

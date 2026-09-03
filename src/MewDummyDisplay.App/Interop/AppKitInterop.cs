@@ -106,6 +106,9 @@ internal static class AppKitInterop
     [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
     internal static extern void SendVoid_Byte(nint receiver, nint selector, byte arg);
 
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern byte SendBool(nint receiver, nint selector);
+
     internal static readonly nint SelActivationPolicy = ObjC.Sel("activationPolicy");
 
     /// <summary>The shared NSApplication instance.</summary>
@@ -122,6 +125,30 @@ internal static class AppKitInterop
     /// <summary>Reapplies the accessory policy, which other hosts may have overwritten.</summary>
     internal static void ApplyAccessoryPolicy()
         => SendVoid_Long(SharedApplication(), SelSetActivationPolicy, ACTIVATION_POLICY_ACCESSORY);
+
+    /// <summary>
+    /// Brings the application forward.
+    /// </summary>
+    /// <remarks>
+    /// An accessory application has no Dock icon, so opening a window does not make it the
+    /// active application by itself and the window appears behind whatever had focus.
+    /// activate: replaced activateIgnoringOtherApps: in macOS 14, so the newer one is used
+    /// when the running system has it.
+    /// </remarks>
+    internal static void ActivateApplication()
+    {
+        nint application = SharedApplication();
+        if (ObjC.HasInstanceMethod(NSApplication, "activate"))
+        {
+            ObjC.SendVoid(application, ObjC.Sel("activate"));
+            return;
+        }
+        SendVoid_Byte(application, ObjC.Sel("activateIgnoringOtherApps:"), 1);
+    }
+
+    /// <summary>Whether the application is currently frontmost.</summary>
+    internal static bool IsApplicationActive()
+        => SendBool(SharedApplication(), ObjC.Sel("isActive")) != 0;
 
     /// <summary>Reads the current activation policy.</summary>
     internal static long CurrentActivationPolicy()
