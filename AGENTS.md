@@ -71,4 +71,16 @@ MewUI:
 
 빌드:
 - macOS에서 `dotnet build`. .NET 10 SDK.
+- **개발 중 확인은 Debug 빌드로 한다. AOT 퍼블리시를 고집하지 않는다.**
+  AOT 퍼블리시는 느리고, 확인하려는 것 대부분은 Debug 로 똑같이 확인된다.
+  AOT 는 최종 산출물을 만들 때와, AOT 특유의 제약(`[UnmanagedCallersOnly]` 등)을
+  검증할 때만 돌린다.
+- MewUI 를 ProjectReference 로 쓸 때 참조를 net10.0 으로 고정한다
+  (`SetTargetFramework="TargetFramework=net10.0"`). MewUI 는 다중 타깃이고
+  net8.0 은 현재 빌드되지 않는다.
+- MewUI 의 Release 산출물이 낡으면 "메서드가 없다"는 형태로 실패한다.
+  백엔드가 코어의 `Shared/**` 를 소스로 링크하면서 타입은 참조 어셈블리에서
+  가져오기 때문이다. `--no-incremental` 로 코어를 다시 만들면 풀린다.
+- `.gitignore` 에 `*.app/` 류의 패턴을 쓰지 않는다. 이 파일시스템은 대소문자를
+  구분하지 않아 `MewDummyDisplay.App/` 프로젝트까지 조용히 삼킨다.
 - 좌표/로직 검증은 stderr 로그 우선, 스크린샷은 시각 확인용만.
