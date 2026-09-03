@@ -12,4 +12,10 @@
     <InternalsVisibleTo Include="Aprillz.MewDummyDisplay.Tests" />
   </ItemGroup>
 
+  <!-- Generic Objective-C runtime access, linked rather than referenced so the App can
+       use the same helpers without the library exposing them or gaining a UI dependency. -->
+  <ItemGroup>
+    <Compile Include="../Shared/ObjCRuntime/**/*.cs" LinkBase="Interop" />
+  </ItemGroup>
+
 </Project>

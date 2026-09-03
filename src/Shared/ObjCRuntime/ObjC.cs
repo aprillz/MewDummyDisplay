@@ -134,6 +134,17 @@ internal static class ObjC
         return SendPtr(autoreleased, SelRetain);
     }
 
+    /// <summary>Reads an NSString as a managed string.</summary>
+    internal static string ReadString(nint nsString)
+    {
+        if (nsString == 0)
+        {
+            return "";
+        }
+        nint utf8 = SendPtr(nsString, _selUtf8String);
+        return utf8 == 0 ? "" : Marshal.PtrToStringUTF8(utf8) ?? "";
+    }
+
     /// <summary>Creates an owned NSArray from a span of object pointers.</summary>
     internal static nint NewArray(ReadOnlySpan<nint> items)
     {
@@ -166,6 +177,7 @@ internal static class ObjC
     private static readonly nint _nsString = RequireClass("NSString");
     private static readonly nint _nsArray = RequireClass("NSArray");
     private static readonly nint _selStringWithUtf8 = Sel("stringWithUTF8String:");
+    private static readonly nint _selUtf8String = Sel("UTF8String");
     private static readonly nint _nsDictionary = RequireClass("NSDictionary");
     private static readonly nint _nsNumber = RequireClass("NSNumber");
     private static readonly nint _selArrayWithObjects = Sel("arrayWithObjects:count:");

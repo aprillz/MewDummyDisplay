@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="MewDummyDisplay/MewDummyDisplay.csproj" />
   <Project Path="MewDummyDisplay.Cli/MewDummyDisplay.Cli.csproj" />
+  <Project Path="MewDummyDisplay.App/MewDummyDisplay.App.csproj" />
   <Project Path="MewDummyDisplay.Tests/MewDummyDisplay.Tests.csproj" />
 </Solution>
