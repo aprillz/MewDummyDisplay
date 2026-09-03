@@ -83,7 +83,16 @@ internal sealed class StatusItemHost
                 AppKitInterop.SendBool_Long(item, AppKitInterop.SelSetEnabled, 0);
             }
 
-            if (entry.IsChecked)
+            if (entry.UseSwitch && SwitchMenuItem.IsAvailable && entry.Handler is not null)
+            {
+                // The row draws itself: the switch inside carries the same tag, so a flip
+                // dispatches through the shared action target like any other row.
+                long tag = AppKitInterop.SendLong(item, AppKitInterop.SelTag);
+                nint view = SwitchMenuItem.BuildView(entry.Title, entry.IsChecked, tag);
+                ObjC.SendVoid_Ptr(item, AppKitInterop.SelSetView, view);
+                ObjC.Release(view);
+            }
+            else if (entry.IsChecked)
             {
                 AppKitInterop.SendVoid_Long(item, AppKitInterop.SelSetState, AppKitInterop.CONTROL_STATE_ON);
             }
@@ -109,6 +118,9 @@ internal sealed record MenuEntry
     internal bool IsChecked { get; init; }
 
     internal bool IsSeparator { get; init; }
+
+    /// <summary>Draw the row with an NSSwitch instead of a check mark.</summary>
+    internal bool UseSwitch { get; init; }
 
     internal string KeyEquivalent { get; init; } = "";
 

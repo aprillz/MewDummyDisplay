@@ -20,8 +20,8 @@ internal readonly struct CGSize(double width, double height)
 
 /// <summary>CoreGraphics CGRect.</summary>
 [StructLayout(LayoutKind.Sequential)]
-internal readonly struct CGRect
+internal readonly struct CGRect(double x, double y, double width, double height)
 {
-    internal readonly CGPoint Origin;
-    internal readonly CGSize Size;
+    internal readonly CGPoint Origin = new(x, y);
+    internal readonly CGSize Size = new(width, height);
 }

@@ -27,6 +27,8 @@ internal static class CreateCommand
         bool watch = true;
         bool pump = true;
         int pollSeconds = 0;
+        uint? serial = null;
+        bool randomSerial = false;
         string? setResolution = null;
         bool slsUseFloat = true;
 
@@ -58,6 +60,12 @@ internal static class CreateCommand
                 case "--poll" when index + 1 < args.Length:
                     pollSeconds = int.Parse(args[++index]);
                     break;
+                case "--serial" when index + 1 < args.Length:
+                    serial = Convert.ToUInt32(args[++index], 16);
+                    break;
+                case "--random-serial":
+                    randomSerial = true;
+                    break;
                 case "--resolution" when index + 1 < args.Length:
                     setResolution = args[++index];
                     break;
@@ -87,6 +95,7 @@ internal static class CreateCommand
             Definition = definition,
             HiDpi = hiDpi,
             RefreshRateOverride = refreshRate,
+            SerialNumber = randomSerial ? 0 : serial ?? ToolSerials.For(definition.Id),
         };
 
         Dummy? dummy = manager.Create(spec);

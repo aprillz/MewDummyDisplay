@@ -70,7 +70,7 @@ internal static class StressCommand
         {
             DateTime started = DateTime.UtcNow;
             DummyDefinition definition = vary ? _varied[(index - 1) % _varied.Length] : Require("16:9");
-            Dummy? dummy = manager.Create(new DummySpec { Definition = definition });
+            Dummy? dummy = manager.Create(new DummySpec { Definition = definition, SerialNumber = ToolSerials.For(definition.Id) });
             if (dummy is null)
             {
                 Console.WriteLine($"{index,-4} {definition.Id,-9} {"-",-6} {"-",-6} {"createFailed",-12}");

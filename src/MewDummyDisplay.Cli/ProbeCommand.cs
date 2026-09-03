@@ -78,7 +78,7 @@ internal static class ProbeCommand
     private static (string, bool, string) CheckSingleCreate()
     {
         using DummyManager manager = new();
-        Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID) });
+        Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID), SerialNumber = ToolSerials.For(DEFINITION_ID) });
         if (dummy is null)
         {
             return ("create", false, "applySettings returned false");
@@ -100,7 +100,7 @@ internal static class ProbeCommand
         List<uint> created = [];
         for (int index = 0; index < 3; index++)
         {
-            Dummy? dummy = manager.Create(new DummySpec { Definition = definition });
+            Dummy? dummy = manager.Create(new DummySpec { Definition = definition, SerialNumber = ToolSerials.For(definition.Id) });
             if (dummy is null)
             {
                 break;
@@ -119,7 +119,7 @@ internal static class ProbeCommand
     private static (string, bool, string) CheckModes()
     {
         using DummyManager manager = new();
-        Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID) });
+        Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID), SerialNumber = ToolSerials.For(DEFINITION_ID) });
         if (dummy is null)
         {
             return ("modes", false, "could not create a dummy to enumerate");
@@ -154,7 +154,7 @@ internal static class ProbeCommand
         }
 
         using DummyManager manager = new();
-        Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID) });
+        Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID), SerialNumber = ToolSerials.For(DEFINITION_ID) });
         if (dummy is null)
         {
             return ("mirror", false, "could not create the dummy to mirror onto");
@@ -181,7 +181,7 @@ internal static class ProbeCommand
         foreach (double candidate in (double[])[60, 120, 144])
         {
             using DummyManager manager = new();
-            Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID), RefreshRateOverride = candidate });
+            Dummy? dummy = manager.Create(new DummySpec { Definition = Require(DEFINITION_ID), SerialNumber = ToolSerials.For(DEFINITION_ID), RefreshRateOverride = candidate });
             if (dummy is null)
             {
                 observations.Add($"{candidate:0}:createFailed");

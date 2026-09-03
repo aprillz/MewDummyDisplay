@@ -11,6 +11,16 @@ namespace Aprillz.MewDummyDisplay.App;
 // the menu itself, because that dispatch is the fragile part worth proving.
 internal static class SelfTest
 {
+    /// <summary>
+    /// A fixed identity for the test display.
+    /// </summary>
+    /// <remarks>
+    /// macOS identifies a display by its serial and writes a ColorSync profile per
+    /// identity that it then keeps forever. A random serial would leave one more profile
+    /// behind on every run, so the test reuses a single one.
+    /// </remarks>
+    private const uint TEST_SERIAL = 0x5E1F7E57;
+
     internal static bool Run(MenuBarController controller)
     {
         bool passed = true;
@@ -18,7 +28,12 @@ internal static class SelfTest
         passed &= Check("no dummies at startup", controller.Dummies.Count == 0);
 
         DummyDefinition definition = DummyDefinitionCatalog.Find("16:9")!;
-        Dummy? dummy = controller.Manager.Create(new DummySpec { Definition = definition, Name = "Self test" });
+        Dummy? dummy = controller.Manager.Create(new DummySpec
+        {
+            Definition = definition,
+            Name = "MewDummy self test",
+            SerialNumber = TEST_SERIAL,
+        });
         controller.Rebuild();
 
         passed &= Check("dummy created", dummy is not null && controller.Dummies.Count == 1);

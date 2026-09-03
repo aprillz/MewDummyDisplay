@@ -265,9 +265,20 @@ public static class DisplayCatalog
         }
     }
 
-    /// <summary>Makes one display mirror another.</summary>
+    /// <summary>
+    /// Makes <paramref name="displayId"/> show the contents of <paramref name="sourceDisplayId"/>.
+    /// </summary>
+    /// <remarks>
+    /// Direction matters and is easy to get backwards. A dummy exists to supply a resolution
+    /// the real monitor cannot offer on its own, so the useful arrangement is the real
+    /// display mirroring the dummy, not the other way around.
+    /// </remarks>
     public static bool SetMirror(uint displayId, uint sourceDisplayId)
         => Configure(displayId, sourceDisplayId);
+
+    /// <summary>Displays currently showing the contents of <paramref name="sourceDisplayId"/>.</summary>
+    public static IReadOnlyList<DisplayInfo> DisplaysMirroring(uint sourceDisplayId)
+        => [.. Online().Where(display => display.MirrorsDisplayId == sourceDisplayId)];
 
     /// <summary>Turns mirroring off for one display.</summary>
     public static bool ClearMirror(uint displayId)

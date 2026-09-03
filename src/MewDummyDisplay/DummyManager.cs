@@ -83,6 +83,56 @@ public sealed class DummyManager : IDisposable
         return dummy;
     }
 
+    /// <summary>Writes the current dummies into a settings record.</summary>
+    public DummySettings CaptureSettings(GeneralSettings? general = null) => new()
+    {
+        General = general ?? new GeneralSettings(),
+        Dummies =
+        [
+            .. _dummies.Select(dummy => new DummyRecord
+            {
+                DefinitionId = dummy.Spec.Definition.Id,
+                SerialNumber = dummy.SerialNumber,
+                Name = dummy.Spec.Name,
+                HiDpi = dummy.Spec.HiDpi,
+                Connected = dummy.IsConnected,
+                ResolutionCount = dummy.Spec.ResolutionCount,
+            }),
+        ],
+    };
+
+    /// <summary>
+    /// Recreates the dummies described by a settings record, reusing their serials so
+    /// macOS sees the same displays it saw last time.
+    /// </summary>
+    public void RestoreSettings(DummySettings settings)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        foreach (DummyRecord record in settings.Dummies)
+        {
+            DummyDefinition? definition = DummyDefinitionCatalog.Find(record.DefinitionId, settings.General.Enable16K);
+            if (definition is null)
+            {
+                continue;
+            }
+
+            Dummy? dummy = Create(new DummySpec
+            {
+                Definition = definition,
+                SerialNumber = record.SerialNumber,
+                Name = record.Name,
+                HiDpi = record.HiDpi,
+                ResolutionCount = record.ResolutionCount,
+            });
+
+            if (dummy is not null && !record.Connected)
+            {
+                Disconnect(dummy);
+            }
+        }
+    }
+
     /// <summary>Connects a dummy that is currently disconnected.</summary>
     public bool Connect(Dummy dummy)
     {

@@ -55,6 +55,11 @@ internal static class AppKitInterop
     internal static readonly nint NSMenu = ObjC.RequireClass("NSMenu");
     internal static readonly nint NSMenuItem = ObjC.RequireClass("NSMenuItem");
     internal static readonly nint NSImage = ObjC.RequireClass("NSImage");
+    internal static readonly nint NSView = ObjC.RequireClass("NSView");
+    internal static readonly nint NSTextField = ObjC.RequireClass("NSTextField");
+
+    /// <summary>NSSwitch is macOS 10.15 and later, so its absence is handled rather than assumed.</summary>
+    internal static readonly nint NSSwitch = ObjC.TryClass("NSSwitch");
 
     // Selectors
 
@@ -76,15 +81,30 @@ internal static class AppKitInterop
     internal static readonly nint SelSetTarget = ObjC.Sel("setTarget:");
     internal static readonly nint SelSetTag = ObjC.Sel("setTag:");
     internal static readonly nint SelTag = ObjC.Sel("tag");
-    internal static readonly nint SelSetState = ObjC.Sel("setState:");
     internal static readonly nint SelSetEnabled = ObjC.Sel("setEnabled:");
     internal static readonly nint SelImageWithSymbol = ObjC.Sel("imageWithSystemSymbolName:accessibilityDescription:");
     internal static readonly nint SelNumberOfItems = ObjC.Sel("numberOfItems");
     internal static readonly nint SelItemAtIndex = ObjC.Sel("itemAtIndex:");
     internal static readonly nint SelTitle = ObjC.Sel("title");
+    internal static readonly nint SelInitWithFrame = ObjC.Sel("initWithFrame:");
+    internal static readonly nint SelAddSubview = ObjC.Sel("addSubview:");
+    internal static readonly nint SelSetView = ObjC.Sel("setView:");
+    internal static readonly nint SelSetStringValue = ObjC.Sel("setStringValue:");
+    internal static readonly nint SelSetBezeled = ObjC.Sel("setBezeled:");
+    internal static readonly nint SelSetDrawsBackground = ObjC.Sel("setDrawsBackground:");
+    internal static readonly nint SelSetEditable = ObjC.Sel("setEditable:");
+    internal static readonly nint SelSetSelectable = ObjC.Sel("setSelectable:");
+    internal static readonly nint SelSetAction = ObjC.Sel("setAction:");
+    internal static readonly nint SelSetState = ObjC.Sel("setState:");
 
     [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
     internal static extern nint SendPtr_Long(nint receiver, nint selector, long arg);
+
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern nint SendPtr_Rect(nint receiver, nint selector, CGRect frame);
+
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern void SendVoid_Byte(nint receiver, nint selector, byte arg);
 
     internal static readonly nint SelActivationPolicy = ObjC.Sel("activationPolicy");
 

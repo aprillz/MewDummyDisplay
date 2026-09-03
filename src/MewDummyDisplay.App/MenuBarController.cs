@@ -16,10 +16,23 @@ internal sealed class MenuBarController : IDisposable
     private readonly StatusItemHost _host;
     private readonly ManageWindow _manageWindow;
 
-    internal MenuBarController()
+    private readonly bool _persist;
+
+    /// <param name="persist">
+    /// When false the settings file is neither read nor written. The self test needs that:
+    /// otherwise a test run would adopt the user's dummies and then overwrite their file.
+    /// </param>
+    internal MenuBarController(bool persist = true)
     {
+        _persist = persist;
         _host = new StatusItemHost("display.2", "MDD");
-        _manageWindow = new ManageWindow(_manager, Rebuild);
+        _manageWindow = new ManageWindow(_manager, OnChanged);
+
+        if (_persist)
+        {
+            _manager.RestoreSettings(SettingsStore.Load());
+        }
+
         Rebuild();
     }
 
@@ -95,9 +108,12 @@ internal sealed class MenuBarController : IDisposable
         {
             DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
             detail = info.Width > 0 ? $"{info.Width}x{info.Height}" : "...";
-            if (info.IsMirroring)
+
+            DisplayInfo? showingIt = DisplayCatalog.DisplaysMirroring(dummy.DisplayId).FirstOrDefault();
+            if (showingIt is not null)
             {
-                detail += $", {MewDummyDisplayStrings.DummyMirroring.Value}";
+                detail += ", " + string.Format(
+                    MewDummyDisplayStrings.DummyMirroring.Value, $"Display {showingIt.DisplayId}");
             }
         }
 
@@ -105,6 +121,7 @@ internal sealed class MenuBarController : IDisposable
         {
             Title = $"{dummy.Name}  ({detail})",
             IsChecked = dummy.IsConnected,
+            UseSwitch = true,
             Handler = () => Toggle(dummy),
         };
     }
@@ -113,6 +130,16 @@ internal sealed class MenuBarController : IDisposable
     {
         _manager.Toggle(dummy);
         _manageWindow.Refresh();
+        OnChanged();
+    }
+
+    /// <summary>Rebuilds the menu and remembers the new state.</summary>
+    internal void OnChanged()
+    {
         Rebuild();
+        if (_persist)
+        {
+            SettingsStore.Save(_manager.CaptureSettings());
+        }
     }
 }

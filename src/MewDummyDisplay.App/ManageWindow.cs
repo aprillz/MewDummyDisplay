@@ -261,18 +261,12 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         return Card(new StackPanel()
             .Spacing(10)
             .Children(
-                new StackPanel()
-                    .Horizontal()
-                    .Spacing(10)
-                    .Children(
-                        Icons.Display(20),
-                        new StackPanel()
-                            .Spacing(2)
-                            .Children(
-                                new TextBlock().Text(dummy.Name).Bold(),
-                                Muted($"{dummy.Spec.Definition.Id}  {info.Width}x{info.Height}" +
-                                    (info.IsHiDpi ? $"  HiDPI {info.PixelWidth}x{info.PixelHeight}" : "") +
-                                    (info.IsMirroring ? $"  {MewDummyDisplayStrings.DummyMirroring.Value}" : "")))),
+                PowerHeader(
+                    dummy,
+                    Icons.Display(20),
+                    $"{dummy.Spec.Definition.Id}  {info.Width}x{info.Height}" +
+                        (info.IsHiDpi ? $"  HiDPI {info.PixelWidth}x{info.PixelHeight}" : "") +
+                        MirrorSuffix(dummy)),
                 new Grid()
                     .Columns("Auto,*,Auto")
                     .Rows("Auto,Auto")
@@ -295,18 +289,73 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                             .Column(2)
                             .Content(MewDummyDisplayStrings.WindowRename.Value)
                             .OnClick(() => RenameDummy(dummy, rename.Text))),
+                BuildMirrorRow(dummy),
                 new StackPanel()
                     .Horizontal()
                     .Spacing(8)
                     .Children(
-                        IconButton(MewDummyDisplayStrings.WindowDisconnect.Value, Icons.Display(16), () => ToggleConnected(dummy)),
-                        IconButton(
-                            info.IsMirroring
-                                ? MewDummyDisplayStrings.WindowMirrorOff.Value
-                                : MewDummyDisplayStrings.WindowMirrorOn.Value,
-                            Icons.Mirror(),
-                            () => ToggleMirror(dummy)),
                         IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
+    }
+
+    /// <summary>
+    /// Chooses which monitor shows this dummy's picture.
+    /// </summary>
+    /// <remarks>
+    /// Worth stating plainly because the direction is the whole point and easy to invert.
+    /// A dummy supplies a resolution the monitor cannot offer by itself, so the monitor is
+    /// what mirrors the dummy. Naming the monitor in the list, rather than offering an on
+    /// and off button against an unnamed "main display", is what makes that readable.
+    /// </remarks>
+    private Grid BuildMirrorRow(Dummy dummy)
+    {
+        List<DisplayInfo> candidates =
+        [
+            .. DisplayCatalog.Online()
+                .Where(display => display.VendorId != DummySpec.VENDOR_ID)
+                .Where(display => display.DisplayId != dummy.DisplayId),
+        ];
+
+        DisplayInfo? showingIt = DisplayCatalog.DisplaysMirroring(dummy.DisplayId).FirstOrDefault();
+        List<string> options = [MewDummyDisplayStrings.WindowMirrorNone.Value, .. candidates.Select(DisplayLabel)];
+        int selected = showingIt is null
+            ? 0
+            : candidates.FindIndex(display => display.DisplayId == showingIt.DisplayId) + 1;
+
+        return new Grid()
+            .Columns("Auto,*")
+            .Rows("Auto,Auto")
+            .Spacing(8)
+            .Children(
+                new TextBlock().Text(MewDummyDisplayStrings.WindowMirrorLabel.Value).CenterVertical(),
+                new ComboBox()
+                    .Column(1)
+                    .Items([.. options])
+                    .SelectedIndex(Math.Max(0, selected))
+                    .OnSelectionChanged(value => ApplyMirror(dummy, candidates, options.IndexOf(value as string ?? ""))),
+                Muted(MewDummyDisplayStrings.WindowMirrorHint.Value).Row(1).Column(1));
+    }
+
+    private static string DisplayLabel(DisplayInfo display)
+    {
+        List<string> tags = [];
+        if (display.IsBuiltIn)
+        {
+            tags.Add(MewDummyDisplayStrings.SystemBuiltIn.Value);
+        }
+        if (display.IsMain)
+        {
+            tags.Add(MewDummyDisplayStrings.SystemMain.Value);
+        }
+        return $"Display {display.DisplayId}  {display.Width}x{display.Height}" +
+            (tags.Count > 0 ? $"  ({string.Join(", ", tags)})" : "");
+    }
+
+    private static string MirrorSuffix(Dummy dummy)
+    {
+        DisplayInfo? showingIt = DisplayCatalog.DisplaysMirroring(dummy.DisplayId).FirstOrDefault();
+        return showingIt is null
+            ? ""
+            : "  " + string.Format(MewDummyDisplayStrings.DummyMirroring.Value, $"Display {showingIt.DisplayId}");
     }
 
     /// <summary>A dummy that is defined but turned off has no display to describe.</summary>
@@ -314,22 +363,35 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         => Card(new StackPanel()
             .Spacing(10)
             .Children(
-                new StackPanel()
-                    .Horizontal()
-                    .Spacing(10)
-                    .Children(
-                        Icons.DisplayOutline(20),
-                        new StackPanel()
-                            .Spacing(2)
-                            .Children(
-                                new TextBlock().Text(dummy.Name).Bold(),
-                                Muted($"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}"))),
+                PowerHeader(dummy, Icons.DisplayOutline(20), $"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}"),
                 new StackPanel()
                     .Horizontal()
                     .Spacing(8)
                     .Children(
-                        IconButton(MewDummyDisplayStrings.WindowConnect.Value, Icons.Display(16), () => ToggleConnected(dummy)),
                         IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
+
+    /// <summary>
+    /// Card header: icon, name, one line of detail, and the switch that turns the display
+    /// on or off. A switch rather than a button, because this is a state that stays, not an
+    /// action that happens once.
+    /// </summary>
+    private Grid PowerHeader(Dummy dummy, Element icon, string detail)
+        => new Grid()
+            .Columns("Auto,*,Auto")
+            .Children(
+                icon,
+                new StackPanel()
+                    .Column(1)
+                    .Spacing(2)
+                    .Margin(10, 0, 10, 0)
+                    .Children(
+                        new TextBlock().Text(dummy.Name).Bold(),
+                        Muted(detail)),
+                new ToggleSwitch()
+                    .Column(2)
+                    .CenterVertical()
+                    .IsChecked(dummy.IsConnected)
+                    .OnCheckedChanged(_ => ToggleConnected(dummy)));
 
     private void ToggleConnected(Dummy dummy)
     {
@@ -409,20 +471,19 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         onChanged();
     }
 
-    private void ToggleMirror(Dummy dummy)
+    private void ApplyMirror(Dummy dummy, List<DisplayInfo> candidates, int optionIndex)
     {
-        DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
-        if (info.IsMirroring)
+        // Whatever was showing this dummy stops first, so switching monitors does not leave
+        // the previous one stuck on it.
+        foreach (DisplayInfo showing in DisplayCatalog.DisplaysMirroring(dummy.DisplayId))
         {
-            DisplayCatalog.ClearMirror(dummy.DisplayId);
+            DisplayCatalog.ClearMirror(showing.DisplayId);
         }
-        else
+
+        int candidateIndex = optionIndex - 1;
+        if (candidateIndex >= 0 && candidateIndex < candidates.Count)
         {
-            DisplayInfo? main = DisplayCatalog.Online().FirstOrDefault(display => display.IsMain);
-            if (main is not null)
-            {
-                DisplayCatalog.SetMirror(dummy.DisplayId, main.DisplayId);
-            }
+            DisplayCatalog.SetMirror(candidates[candidateIndex].DisplayId, dummy.DisplayId);
         }
 
         Refresh();

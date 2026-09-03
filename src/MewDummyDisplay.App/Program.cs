@@ -42,7 +42,7 @@ internal static class Program
                 // give a menu bar utility a Dock icon, so it is reasserted here.
                 AppKitInterop.ApplyAccessoryPolicy();
 
-                controller = new MenuBarController();
+                controller = new MenuBarController(persist: !selfTest);
 
                 if (selfTest)
                 {
