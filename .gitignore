@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+.artifacts/
+*.user
+*.suo
+
+# 스파이크 (Phase 0 산출물, 커밋하지 않음)
+spike/
+
+# macOS
+.DS_Store
+
+# 빌드 산출물
+*.app/
+*.dmg
+/tools/**/dump
+/reference/private-api/dump
+
+# Working material kept local: design notes and the reference snapshot
+/agent/
+/reference/
