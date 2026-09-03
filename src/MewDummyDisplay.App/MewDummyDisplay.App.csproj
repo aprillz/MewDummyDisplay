@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>MewDummyDisplay</AssemblyName>
+    <RootNamespace>Aprillz.MewDummyDisplay.App</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">osx-arm64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../MewDummyDisplay/MewDummyDisplay.csproj" />
+  </ItemGroup>
+
+  <!-- MewUI lives in a sibling repository and is referenced by project while the UI is
+       being built. MewUIRepoPath in Directory.Build.props allows a different checkout.
+
+       SetTargetFramework pins each reference to net10.0. MewUI multi-targets, and publish
+       would otherwise build its net8.0 target too, which does not currently compile. -->
+  <ItemGroup>
+    <ProjectReference Include="$(MewUIRepoPath)/src/MewUI/MewUI.csproj"
+                      SetTargetFramework="TargetFramework=net10.0" />
+    <ProjectReference Include="$(MewUIRepoPath)/src/MewUI.Platform.MacOS/MewUI.Platform.MacOS.csproj"
+                      SetTargetFramework="TargetFramework=net10.0" />
+    <ProjectReference Include="$(MewUIRepoPath)/src/MewUI.Backend.MewVG.MacOS/MewUI.Backend.MewVG.MacOS.csproj"
+                      SetTargetFramework="TargetFramework=net10.0" />
+  </ItemGroup>
+
+  <!-- Same generic Objective-C helpers the library links. Shared as source so the
+       library keeps them internal and gains no dependency on this project. -->
+  <ItemGroup>
+    <Compile Include="../Shared/ObjCRuntime/**/*.cs" LinkBase="Interop" />
+  </ItemGroup>
+
+</Project>

@@ -11,8 +11,9 @@ spike/
 # macOS
 .DS_Store
 
-# 빌드 산출물
-*.app/
+# Build output. Bundles land under .artifacts, which is already ignored; a bare
+# "*.app/" pattern must not be used because git is case-insensitive here and it
+# would also swallow the MewDummyDisplay.App project directory.
 *.dmg
 /tools/**/dump
 /reference/private-api/dump

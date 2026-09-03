@@ -1,0 +1,91 @@
+using Aprillz.MewUI;
+
+namespace Aprillz.MewDummyDisplay.App;
+
+/// <summary>
+/// Centralized UI strings for localization, following the MewUIStrings pattern.
+/// Defaults are English. Assign <see cref="ObservableValue{T}.Value"/> at runtime to
+/// change one, and call <see cref="ResetToDefaults"/> to restore every default.
+/// </summary>
+/// <remarks>
+/// Lives in the application rather than the library: the library carries stable
+/// identifiers and structural facts, never display text, so that it keeps no dependency
+/// on a UI framework.
+/// </remarks>
+public static class MewDummyDisplayStrings
+{
+    private static readonly List<Action> _resetters = [];
+
+    private static ObservableValue<string> Define(string defaultValue)
+    {
+        ObservableValue<string> value = new(defaultValue);
+        _resetters.Add(() => value.Value = defaultValue);
+        return value;
+    }
+
+    /// <summary>Restores every string to its built-in English default.</summary>
+    public static void ResetToDefaults()
+    {
+        foreach (Action reset in _resetters)
+        {
+            reset();
+        }
+    }
+
+    // Menu structure
+    public static ObservableValue<string> MenuNoDummies { get; } = Define("No dummy displays");
+    public static ObservableValue<string> MenuAddHeading { get; } = Define("Add a dummy display");
+    public static ObservableValue<string> MenuRemoveAll { get; } = Define("Remove all dummy displays");
+    public static ObservableValue<string> MenuQuit { get; } = Define("Quit MewDummyDisplay");
+    public static ObservableValue<string> MenuUnsupported { get; } = Define("Virtual displays are unavailable on this system");
+
+    // Window
+    public static ObservableValue<string> MenuManage { get; } = Define("Manage dummy displays...");
+    public static ObservableValue<string> WindowTitle { get; } = Define("MewDummyDisplay");
+    public static ObservableValue<string> WindowCreateHeading { get; } = Define("Create a dummy display");
+    public static ObservableValue<string> WindowAspectRatio { get; } = Define("Aspect ratio");
+    public static ObservableValue<string> WindowHiDpi { get; } = Define("HiDPI (Retina)");
+    public static ObservableValue<string> WindowCreate { get; } = Define("Create");
+    public static ObservableValue<string> WindowExisting { get; } = Define("Dummy displays");
+    public static ObservableValue<string> WindowNone { get; } = Define("None yet. Create one above.");
+    public static ObservableValue<string> WindowResolution { get; } = Define("Resolution");
+    public static ObservableValue<string> WindowApply { get; } = Define("Apply");
+    public static ObservableValue<string> WindowMirrorOn { get; } = Define("Mirror main display");
+    public static ObservableValue<string> WindowMirrorOff { get; } = Define("Stop mirroring");
+    public static ObservableValue<string> WindowRemove { get; } = Define("Remove");
+    public static ObservableValue<string> WindowClose { get; } = Define("Close");
+
+    // Dummy rows
+    public static ObservableValue<string> DummyMirroring { get; } = Define("mirroring");
+    public static ObservableValue<string> DummyRemove { get; } = Define("Remove");
+
+    // Aspect ratio kinds
+    public static ObservableValue<string> KindWide { get; } = Define("Wide");
+    public static ObservableValue<string> KindStandard { get; } = Define("Standard");
+    public static ObservableValue<string> KindCinema { get; } = Define("Cinema");
+    public static ObservableValue<string> KindUltraWide { get; } = Define("Ultrawide");
+    public static ObservableValue<string> KindDoubleWide { get; } = Define("Double wide");
+    public static ObservableValue<string> KindSquare { get; } = Define("Square");
+    public static ObservableValue<string> KindPortrait { get; } = Define("Portrait");
+    public static ObservableValue<string> KindPhoto { get; } = Define("Photography");
+    public static ObservableValue<string> KindTablet { get; } = Define("Tablet");
+
+    /// <summary>Localized label for a definition category.</summary>
+    public static string Kind(DummyDefinitionKind kind) => kind switch
+    {
+        DummyDefinitionKind.Wide => KindWide.Value,
+        DummyDefinitionKind.Standard => KindStandard.Value,
+        DummyDefinitionKind.Cinema => KindCinema.Value,
+        DummyDefinitionKind.UltraWide => KindUltraWide.Value,
+        DummyDefinitionKind.DoubleWide => KindDoubleWide.Value,
+        DummyDefinitionKind.Square => KindSquare.Value,
+        DummyDefinitionKind.Portrait => KindPortrait.Value,
+        DummyDefinitionKind.Photo => KindPhoto.Value,
+        DummyDefinitionKind.Tablet => KindTablet.Value,
+        _ => kind.ToString(),
+    };
+
+    /// <summary>Label for one definition in the add list, for example "16:9 (Wide)".</summary>
+    public static string Definition(DummyDefinition definition)
+        => $"{definition.Id} ({Kind(definition.Kind)})";
+}
