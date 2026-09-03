@@ -65,22 +65,83 @@ public sealed class DummyDefinition
         => (AspectWidth * MultiplierStep * multiplier, AspectHeight * MultiplierStep * multiplier);
 
     /// <summary>
-    /// A short list of round resolutions, for showing to a person.
+    /// A short list of familiar resolutions, for offering to a person.
     /// </summary>
     /// <remarks>
     /// <see cref="Resolutions"/> walks every multiplier, which for a 16:9 dummy is over two
-    /// hundred sizes and mostly noise like 1296x729. This keeps multipliers divisible by the
-    /// smallest stride that brings the count near <paramref name="targetCount"/>, which lands
-    /// on the familiar sizes: 1280x720, 1920x1080, 2560x1440, 3840x2160. The largest
-    /// resolution is always included, because it is the reason to pick a definition at all.
+    /// hundred sizes in sixteen pixel steps. macOS lists all of them in System Settings, so
+    /// the useful ones get buried.
+    ///
+    /// Sizes are picked by matching a ladder of standard widths against what the ratio can
+    /// actually produce, in order of how well known each one is, so a short list still keeps
+    /// 1920x1080 and 2560x1440. Ratios that hit none of them fall back to an even stride.
+    /// The largest is always included, because it is the reason to choose a ratio at all.
     /// </remarks>
-    public IReadOnlyList<(int Width, int Height)> CommonResolutions(int targetCount = 12)
+    public IReadOnlyList<(int Width, int Height)> CommonResolutions(int targetCount = 8)
     {
         if (!IsUsable)
         {
             return [];
         }
 
+        List<int> multipliers = MatchStandardSizes(targetCount);
+        if (multipliers.Count < 3)
+        {
+            multipliers = MatchEvenStride(targetCount);
+        }
+
+        if (multipliers.Count == 0)
+        {
+            return [.. Resolutions()];
+        }
+
+        multipliers.Sort();
+        if (multipliers[^1] != MaxMultiplier)
+        {
+            multipliers.Add(MaxMultiplier);
+        }
+        return [.. multipliers.Select(PixelsFor)];
+    }
+
+    /// <summary>
+    /// Standard display widths, most recognizable first. The long edge is matched against
+    /// these so portrait ratios land on the same familiar sizes as landscape ones.
+    /// </summary>
+    private static readonly int[] _standardLongEdges =
+        [1920, 2560, 3840, 1280, 5120, 3200, 1600, 7680, 2048, 4096, 1440, 6400, 2880, 1680, 2240, 3440];
+
+    /// <summary>Strides tried in order when no standard size fits the ratio.</summary>
+    private static readonly int[] _strides = [1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 128, 160, 200];
+
+    private List<int> MatchStandardSizes(int targetCount)
+    {
+        int longEdgeStep = Math.Max(AspectWidth, AspectHeight) * MultiplierStep;
+        List<int> multipliers = [];
+
+        foreach (int longEdge in _standardLongEdges)
+        {
+            if (multipliers.Count >= targetCount)
+            {
+                break;
+            }
+
+            if (longEdge % longEdgeStep != 0)
+            {
+                continue;
+            }
+
+            int multiplier = longEdge / longEdgeStep;
+            if (multiplier >= MinMultiplier && multiplier <= MaxMultiplier && !multipliers.Contains(multiplier))
+            {
+                multipliers.Add(multiplier);
+            }
+        }
+
+        return multipliers;
+    }
+
+    private List<int> MatchEvenStride(int targetCount)
+    {
         foreach (int stride in _strides)
         {
             List<int> multipliers = [];
@@ -94,19 +155,12 @@ public sealed class DummyDefinition
 
             if (multipliers.Count >= 3 && multipliers.Count <= targetCount)
             {
-                if (multipliers[^1] != MaxMultiplier)
-                {
-                    multipliers.Add(MaxMultiplier);
-                }
-                return [.. multipliers.Select(PixelsFor)];
+                return multipliers;
             }
         }
 
-        return [.. Resolutions()];
+        return [];
     }
-
-    /// <summary>Strides tried in order, chosen so the kept multipliers stay round numbers.</summary>
-    private static readonly int[] _strides = [1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 128, 160, 200];
 
     /// <summary>Every resolution this definition can produce, in ascending order.</summary>
     public IEnumerable<(int Width, int Height)> Resolutions()

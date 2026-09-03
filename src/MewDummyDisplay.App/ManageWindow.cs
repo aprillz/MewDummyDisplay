@@ -242,14 +242,11 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
 
-        // Two filters. Only HiDPI modes, because supplying a Retina resolution is why a
-        // dummy exists. And only the round sizes from the definition: the display really
-        // offers every multiplier, which is hundreds of entries like 1296x729 that nobody
-        // wants to scroll past. The full set stays available in System Settings.
-        HashSet<(int, int)> common = [.. dummy.Spec.Definition.CommonResolutions()];
+        // The display is already created with a curated set of sizes, so this only drops
+        // the low resolution twin of each one: supplying a Retina resolution is why a dummy
+        // exists, and showing both variants of every size doubles the list for nothing.
         List<DisplayMode> modes = [.. dummy.Modes()
             .Where(mode => mode.IsHiDpi)
-            .Where(mode => common.Contains((mode.Width, mode.Height)))
             .DistinctBy(mode => (mode.Width, mode.Height))
             .OrderBy(mode => (long)mode.Width * mode.Height)];
         if (modes.Count == 0)

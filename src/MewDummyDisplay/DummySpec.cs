@@ -28,6 +28,16 @@ public sealed record DummySpec
 
     public bool HiDpi { get; init; } = true;
 
+    /// <summary>
+    /// How many resolutions the display offers.
+    /// </summary>
+    /// <remarks>
+    /// Every multiplier would be over two hundred sizes in sixteen pixel steps, and macOS
+    /// shows all of them in System Settings, which buries the useful ones. The curated set
+    /// keeps the familiar sizes and stays short enough to read.
+    /// </remarks>
+    public int ResolutionCount { get; init; } = 8;
+
     /// <summary>Diagonal size in inches, used only to compute the reported physical size.</summary>
     public double DiagonalInches { get; init; } = 24.0;
 

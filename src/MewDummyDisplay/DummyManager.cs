@@ -143,8 +143,10 @@ public sealed class DummyManager : IDisposable
         (int maxWidth, int maxHeight) = definition.PixelsFor(definition.MaxMultiplier);
         double refreshRate = dummy.Spec.RefreshRateOverride ?? DummySpec.FIXED_REFRESH_RATE;
 
+        // Only the curated sizes go to the display. Offering every multiplier floods the
+        // System Settings resolution list with hundreds of near-identical entries.
         List<VirtualDisplayMode> modes = [];
-        foreach ((int width, int height) in definition.Resolutions())
+        foreach ((int width, int height) in definition.CommonResolutions(dummy.Spec.ResolutionCount))
         {
             modes.Add(new VirtualDisplayMode((uint)width, (uint)height, refreshRate));
         }

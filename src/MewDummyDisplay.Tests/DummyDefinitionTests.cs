@@ -92,7 +92,7 @@ public sealed class DummyDefinitionTests
         IReadOnlyList<(int Width, int Height)> common = definition.CommonResolutions();
 
         Assert.IsGreaterThan(100, definition.Resolutions().Count());
-        Assert.IsLessThanOrEqualTo(13, common.Count);
+        Assert.IsLessThanOrEqualTo(10, common.Count);
         Assert.IsGreaterThanOrEqualTo(3, common.Count);
     }
 
@@ -106,6 +106,45 @@ public sealed class DummyDefinitionTests
         Assert.Contains((1920, 1080), common);
         Assert.Contains((2560, 1440), common);
         Assert.Contains((3840, 2160), common);
+    }
+
+    [TestMethod]
+    [DataRow(4)]
+    [DataRow(6)]
+    [DataRow(8)]
+    [DataRow(12)]
+    public void CommonResolutions_Keep1080pEvenWhenShort(int targetCount)
+    {
+        // The earlier even-stride approach dropped 1920x1080 at small counts, because 60
+        // is not a multiple of the stride that produced few enough entries.
+        DummyDefinition definition = new("16:9", DummyDefinitionKind.Wide, 16, 9, 2);
+
+        Assert.Contains((1920, 1080), definition.CommonResolutions(targetCount));
+    }
+
+    [TestMethod]
+    public void CommonResolutions_KeepUltrawideStandards()
+    {
+        Assert.Contains((2560, 1080), DummyDefinitionCatalog.Find("21.3:9")!.CommonResolutions());
+        Assert.Contains((3440, 1440), DummyDefinitionCatalog.Find("21.5:9")!.CommonResolutions());
+    }
+
+    [TestMethod]
+    public void CommonResolutions_KeepPortraitStandards()
+    {
+        // Portrait ratios match the ladder on their long edge, so they land on the same
+        // familiar sizes turned on their side.
+        Assert.Contains((1080, 1920), DummyDefinitionCatalog.Find("9:16")!.CommonResolutions());
+        Assert.Contains((1440, 2560), DummyDefinitionCatalog.Find("9:16")!.CommonResolutions());
+    }
+
+    [TestMethod]
+    public void CommonResolutions_StayShortForEveryDefinition()
+    {
+        foreach (DummyDefinition definition in DummyDefinitionCatalog.All())
+        {
+            Assert.IsLessThanOrEqualTo(10, definition.CommonResolutions().Count, definition.Id);
+        }
     }
 
     [TestMethod]
