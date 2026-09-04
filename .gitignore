@@ -15,9 +15,9 @@ spike/
 # "*.app/" pattern must not be used because git is case-insensitive here and it
 # would also swallow the MewDummyDisplay.App project directory.
 *.dmg
-/tools/**/dump
-/reference/private-api/dump
 
-# Working material kept local: design notes and the reference snapshot
+# Working material kept local: design notes, the reference snapshot, and the
+# one-off diagnostic scripts that belong to an investigation rather than the build.
 /agent/
 /reference/
+/tools/

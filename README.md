@@ -1,31 +1,74 @@
 # MewDummyDisplay
 
-macOS용 가상 더미 디스플레이 유틸리티. [BetterDummy](https://github.com/waydabber/BetterDummy)
-1.0.11을 참조 자료로 삼아 .NET / [MewUI](https://github.com/) 기반으로 새로 만든다.
+macOS용 가상 더미 디스플레이 유틸리티. 메뉴 바에 살면서 가상 디스플레이를 만들고,
+실제 모니터가 그 화면을 미러링하게 한다.
 
-macOS는 4K 미만 디스플레이에 HiDPI("Retina") 모드를 제공하지 않는다.
-소프트웨어 가상 디스플레이를 만들고 실제 모니터를 거기에 미러링하면
-원하는 HiDPI 해상도를 쓸 수 있다. 이 앱은 그 가상 디스플레이를 관리한다.
+macOS는 4K 미만 모니터에 HiDPI("Retina") 모드를 주지 않는다. 원하는 해상도를 가진
+가상 디스플레이를 만들고 실제 모니터를 거기에 미러링하면, 모니터가 그 해상도로
+돌아간다. 이 앱은 그 가상 디스플레이를 관리한다.
 
-## 상태
-
-**설계 단계.** 아직 구현 코드가 없다.
-계획은 [agent/better-dummy-porting/plan.md](agent/better-dummy-porting/plan.md).
+[BetterDummy](https://github.com/waydabber/BetterDummy) 1.0.11을 참조 자료로 삼아
+.NET 10 / [MewUI](https://github.com/aprillz) 기반으로 새로 작성했다. 고지는
+[NOTICE](NOTICE)에 있다.
 
 ## 요구 사항
 
 - macOS 13.0 이상
-- Apple Silicon 또는 Intel
+- Apple Silicon 또는 Intel (배포본은 유니버설 바이너리)
+
+## 쓰는 법
+
+메뉴 바 아이콘을 누르면 정의해 둔 더미 목록이 나온다. 각 항목의 스위치가 그 더미를
+켜고 끈다. `Manage dummy displays...` 는 창을 열어 더미를 만들고, 이름을 바꾸고,
+해상도를 고르고, 어느 모니터가 그것을 미러링할지 정하게 한다.
+
+더미를 "정의하는 것"과 "켜는 것"은 다르다. 정의는 설정에 남고, 켜는 것은 그 순간
+macOS에 디스플레이를 붙이는 일이다. 정의는 유지한 채 꺼 둘 수 있다.
+
+## 만들기
+
+MewUI 와 MewVG 를 형제 디렉터리로 두고 빌드한다. 자세한 내용과 배포는
+[BUILD.md](BUILD.md).
+
+```
+dotnet build src/MewDummyDisplay.slnx     # 라이브러리, CLI, 앱, 테스트
+./build/package.sh                        # 유니버설 .app 과 zip
+./build/package.sh --debug                # 개발용, 이 머신 아키텍처만
+```
+
+앱은 `--self-test` 로 스스로를 검사한다. 더미를 하나 만들고, 켜고, 끄고, 창을 열어
+목록을 확인한 뒤 정리한다.
+
+## 명령줄
+
+`mdd` 는 개발용 도구다. 라이브러리만 쓰고 MewUI 에 의존하지 않는다.
+
+```
+dotnet run --project src/MewDummyDisplay.Cli -- list
+```
+
+| 명령 | 하는 일 |
+|---|---|
+| `list` | 붙어 있는 디스플레이 |
+| `definitions` | 만들 수 있는 더미 종류 |
+| `create <id> [--hold <초>]` | 더미를 만들어 잠시 유지 |
+| `modes <displayId>` | 그 디스플레이의 모드 |
+| `setmode <displayId> <w> <h>` | 모드 변경 |
+| `mirror <대상> <원본>` | 미러링 |
+| `probe` | 가상 디스플레이가 이 시스템에서 되는지 |
+| `stress` | 반복 생성·해제 |
 
 ## 저장소 구조
 
 | 경로 | 내용 |
 |---|---|
-| `src/` | 애플리케이션 소스 |
-| `reference/` | 참조 자료 (읽기 전용). [출처](reference/PROVENANCE.md) |
-| `agent/` | 설계·계획 문서. [문서 안내](agent/better-dummy-porting/README.md) |
+| `src/MewDummyDisplay/` | 라이브러리. 가상 디스플레이 생성, 모드, 미러링 |
+| `src/MewDummyDisplay.App/` | 메뉴 바 애플리케이션 |
+| `src/MewDummyDisplay.Cli/` | `mdd` 개발 도구 |
+| `src/MewDummyDisplay.Tests/` | 테스트 |
+| `src/Shared/ObjCRuntime/` | 라이브러리와 앱이 함께 쓰는 Objective-C 헬퍼 |
+| `build/` | 패키징 |
 
 ## 라이선스
 
-MIT. 참조 원본 BetterDummy도 MIT이며, 고지는 [NOTICE](NOTICE)에 있다.
-검토 내용은 [agent/better-dummy-porting/license.md](agent/better-dummy-porting/license.md).
+MIT. 참조 원본 BetterDummy 도 MIT 이며, 고지는 [NOTICE](NOTICE) 에 있다.
