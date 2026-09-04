@@ -25,7 +25,7 @@ internal sealed class MenuBarController : IDisposable
     internal MenuBarController(bool persist = true)
     {
         _persist = persist;
-        _host = new StatusItemHost("display.2", "MDD");
+        _host = new StatusItemHost(MenuBarIcon.Create("MewDummyDisplay"), "MDD");
         _manageWindow = new ManageWindow(_manager, OnChanged);
 
         if (_persist)

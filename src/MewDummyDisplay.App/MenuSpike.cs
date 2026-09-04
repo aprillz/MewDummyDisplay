@@ -16,7 +16,7 @@ internal static class MenuSpike
         nint application = AppKitInterop.StartAccessoryApplication();
         Console.WriteLine($"NSApplication started with the accessory policy (handle {application:X})");
 
-        StatusItemHost host = new("display", "MDD");
+        StatusItemHost host = new(MenuBarIcon.Create("MewDummyDisplay"), "MDD");
         List<string> fired = [];
 
         host.SetMenu(

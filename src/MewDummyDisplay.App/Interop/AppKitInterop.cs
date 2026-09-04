@@ -16,6 +16,7 @@ internal static class AppKitInterop
     internal const long CONTROL_STATE_OFF = 0;
     internal const long CONTROL_STATE_ON = 1;
 
+
     [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
     internal static extern nint SendPtr_Double(nint receiver, nint selector, double arg);
 
@@ -55,6 +56,9 @@ internal static class AppKitInterop
     internal static readonly nint NSMenu = ObjC.RequireClass("NSMenu");
     internal static readonly nint NSMenuItem = ObjC.RequireClass("NSMenuItem");
     internal static readonly nint NSImage = ObjC.RequireClass("NSImage");
+    internal static readonly nint NSColor = ObjC.RequireClass("NSColor");
+    internal static readonly nint NSArray = ObjC.RequireClass("NSArray");
+    internal static readonly nint NSImageSymbolConfiguration = ObjC.RequireClass("NSImageSymbolConfiguration");
     internal static readonly nint NSView = ObjC.RequireClass("NSView");
     internal static readonly nint NSTextField = ObjC.RequireClass("NSTextField");
 
@@ -82,7 +86,6 @@ internal static class AppKitInterop
     internal static readonly nint SelSetTag = ObjC.Sel("setTag:");
     internal static readonly nint SelTag = ObjC.Sel("tag");
     internal static readonly nint SelSetEnabled = ObjC.Sel("setEnabled:");
-    internal static readonly nint SelImageWithSymbol = ObjC.Sel("imageWithSystemSymbolName:accessibilityDescription:");
     internal static readonly nint SelNumberOfItems = ObjC.Sel("numberOfItems");
     internal static readonly nint SelItemAtIndex = ObjC.Sel("itemAtIndex:");
     internal static readonly nint SelTitle = ObjC.Sel("title");
@@ -102,6 +105,18 @@ internal static class AppKitInterop
 
     [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
     internal static extern nint SendPtr_Rect(nint receiver, nint selector, CGRect frame);
+
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern nint SendPtr_Ptr_Size(nint receiver, nint selector, nint arg, CGSize size);
+
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern nint SendPtr_Ptr_Bool(nint receiver, nint selector, nint arg, byte flag);
+
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern CGSize SendSize(nint receiver, nint selector);
+
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern void SendVoid_Rect_Rect_Long_Double(nint receiver, nint selector, CGRect rect, CGRect fromRect, long operation, double fraction);
 
     [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
     internal static extern void SendVoid_Byte(nint receiver, nint selector, byte arg);
@@ -129,20 +144,4 @@ internal static class AppKitInterop
     /// <summary>Reads the current activation policy.</summary>
     internal static long CurrentActivationPolicy()
         => SendLong(SharedApplication(), SelActivationPolicy);
-
-    /// <summary>Creates an SF Symbol image, or 0 when the symbol is unavailable.</summary>
-    internal static nint SymbolImage(string symbolName, string accessibilityDescription)
-    {
-        nint name = ObjC.NewString(symbolName);
-        nint description = ObjC.NewString(accessibilityDescription);
-        try
-        {
-            return SendPtr_Ptr_Ptr(NSImage, SelImageWithSymbol, name, description);
-        }
-        finally
-        {
-            ObjC.Release(name);
-            ObjC.Release(description);
-        }
-    }
 }

@@ -30,7 +30,7 @@ internal static class HostSpike
                 long policyAfterReassert = AppKitInterop.CurrentActivationPolicy();
                 Console.WriteLine($"activation policy after reasserting  : {policyAfterReassert}");
 
-                host = new StatusItemHost("display", "MDD");
+                host = new StatusItemHost(MenuBarIcon.Create("MewDummyDisplay"), "MDD");
                 host.SetMenu(
                 [
                     new MenuEntry { Title = "MewDummyDisplay host spike" },

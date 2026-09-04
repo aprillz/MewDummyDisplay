@@ -11,14 +11,14 @@ internal sealed class StatusItemHost
     private readonly nint _statusItem;
     private nint _menu;
 
-    internal StatusItemHost(string symbolName, string fallbackTitle)
+    /// <param name="image">The template image for the item, or 0 to show the title instead.</param>
+    internal StatusItemHost(nint image, string fallbackTitle)
     {
         nint statusBar = ObjC.SendPtr(AppKitInterop.NSStatusBar, AppKitInterop.SelSystemStatusBar);
         _statusItem = AppKitInterop.SendPtr_Double(
             statusBar, AppKitInterop.SelStatusItemWithLength, AppKitInterop.VARIABLE_STATUS_ITEM_LENGTH);
 
         nint button = ObjC.SendPtr(_statusItem, AppKitInterop.SelButton);
-        nint image = AppKitInterop.SymbolImage(symbolName, fallbackTitle);
         if (button != 0 && image != 0)
         {
             ObjC.SendVoid_Ptr(button, AppKitInterop.SelSetImage, image);
