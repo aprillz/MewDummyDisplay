@@ -55,6 +55,7 @@ public static class DisplayCatalog
         return new DisplayInfo
         {
             DisplayId = displayId,
+            Name = CoreDisplayInterop.DisplayName(displayId),
             VendorId = CoreGraphicsInterop.CGDisplayVendorNumber(displayId),
             ModelId = CoreGraphicsInterop.CGDisplayModelNumber(displayId),
             SerialNumber = CoreGraphicsInterop.CGDisplaySerialNumber(displayId),
@@ -343,6 +344,10 @@ public static class DisplayCatalog
 public sealed record DisplayInfo
 {
     public required uint DisplayId { get; init; }
+
+    /// <summary>The product name the display reports, or null when it has none.</summary>
+    public string? Name { get; init; }
+
     public required uint VendorId { get; init; }
     public required uint ModelId { get; init; }
     public required uint SerialNumber { get; init; }

@@ -35,6 +35,7 @@ internal static class Diagnostics
         bool online = DisplayCatalog.Online().Any(display => display.DisplayId == displayId);
         DisplayInfo info = DisplayCatalog.Describe(displayId);
         Console.WriteLine("As seen by CoreGraphics:");
+        Console.WriteLine($"  name    : {info.Name ?? "(none)"}");
         Console.WriteLine($"  online  : {online}");
         Console.WriteLine($"  points  : {info.Width}x{info.Height}");
         Console.WriteLine($"  pixels  : {info.PixelWidth}x{info.PixelHeight}");
