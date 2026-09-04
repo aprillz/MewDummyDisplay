@@ -61,11 +61,10 @@ internal static class SelfTest
 
         passed &= Check("manage row dispatched", Select(controller, MewDummyDisplayStrings.MenuManage.Value));
 
-        // The row posts the window to the dispatcher instead of opening it inline, because a
-        // menu action runs inside the nested loop NSMenu uses while tracking and a window
-        // built there is not mapped. That queue drains in the application's own loop, which
-        // this test cannot turn from inside itself, so the window is opened directly here.
-        // What the test still guards is that the window builds and lists what it should.
+        // The row opens the window inline. Showing it activates the application, which the
+        // window server only grants to one the user launched, so a binary driven from a
+        // terminal cannot assert visibility. What the test guards is that the window builds
+        // and lists what it should.
         controller.ManageWindow.Show();
         passed &= Check("management window opened", controller.ManageWindow.IsOpen);
         passed &= Check("window lists the dummy", controller.ManageWindow.RowCount == 1);

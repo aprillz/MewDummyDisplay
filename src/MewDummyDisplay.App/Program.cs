@@ -50,9 +50,8 @@ internal static class Program
                     Console.WriteLine($"windows open  : {Application.Current.AllWindows.Count}");
                     Console.WriteLine($"policy        : {AppKitInterop.CurrentActivationPolicy()}");
 
-                    // Run once startup has finished rather than inside it. Menu rows post
-                    // work to the dispatcher, and that queue only drains in the ordinary
-                    // loop, so a test running inside OnStartup would never see the result.
+                    // Run once startup has finished rather than inside it, so the test sees
+                    // the application in its ordinary running state.
                     MenuBarController target = controller;
                     DispatcherTimer timer = new(TimeSpan.FromMilliseconds(250));
                     timer.Tick += () =>

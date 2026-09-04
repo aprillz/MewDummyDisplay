@@ -126,30 +126,6 @@ internal static class AppKitInterop
     internal static void ApplyAccessoryPolicy()
         => SendVoid_Long(SharedApplication(), SelSetActivationPolicy, ACTIVATION_POLICY_ACCESSORY);
 
-    /// <summary>
-    /// Brings the application forward.
-    /// </summary>
-    /// <remarks>
-    /// An accessory application has no Dock icon, so opening a window does not make it the
-    /// active application by itself and the window appears behind whatever had focus.
-    /// activate: replaced activateIgnoringOtherApps: in macOS 14, so the newer one is used
-    /// when the running system has it.
-    /// </remarks>
-    internal static void ActivateApplication()
-    {
-        nint application = SharedApplication();
-        if (ObjC.HasInstanceMethod(NSApplication, "activate"))
-        {
-            ObjC.SendVoid(application, ObjC.Sel("activate"));
-            return;
-        }
-        SendVoid_Byte(application, ObjC.Sel("activateIgnoringOtherApps:"), 1);
-    }
-
-    /// <summary>Whether the application is currently frontmost.</summary>
-    internal static bool IsApplicationActive()
-        => SendBool(SharedApplication(), ObjC.Sel("isActive")) != 0;
-
     /// <summary>Reads the current activation policy.</summary>
     internal static long CurrentActivationPolicy()
         => SendLong(SharedApplication(), SelActivationPolicy);

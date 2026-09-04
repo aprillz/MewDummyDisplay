@@ -26,15 +26,9 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// <summary>Shows the window, bringing an already open one forward.</summary>
     internal void Show()
     {
-        // An accessory application is not brought forward by opening a window, so the app
-        // is activated first. Without it the window opens behind whatever had focus, which
-        // read as the first click doing nothing.
-        Interop.AppKitInterop.ActivateApplication();
-
         if (_window is not null)
         {
             _window.Show();
-            _window.Activate();
             return;
         }
 
@@ -52,9 +46,10 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         };
 
         _window.Show();
-        _window.Activate();
         Refresh();
     }
+
+
 
     /// <summary>Whether the window is currently open.</summary>
     internal bool IsOpen => _window is not null;
@@ -352,7 +347,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         {
             tags.Add(MewDummyDisplayStrings.SystemMain.Value);
         }
-        return $"Display {display.DisplayId}  {display.Width}x{display.Height}" +
+        return $"{DisplayName(display)}  {display.Width}x{display.Height}" +
             (tags.Count > 0 ? $"  ({string.Join(", ", tags)})" : "");
     }
 
@@ -443,13 +438,17 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     new StackPanel()
                         .Spacing(2)
                         .Children(
-                            new TextBlock().Text($"Display {display.DisplayId}" +
+                            new TextBlock().Text(DisplayName(display) +
                                 (tags.Count > 0 ? $"  ({string.Join(", ", tags)})" : "")).Bold(),
                             Muted($"{display.Width}x{display.Height}" +
                                 (display.IsHiDpi ? $"  HiDPI {display.PixelWidth}x{display.PixelHeight}" : "") +
                                 $"  {display.RefreshRate:0}Hz  {modeCount} {MewDummyDisplayStrings.SystemModes.Value}")))));
         }
     }
+
+    /// <summary>The display's own name, falling back to its id when it reports none.</summary>
+    private static string DisplayName(DisplayInfo display)
+        => display.Name ?? $"Display {display.DisplayId}";
 
     // Actions
 

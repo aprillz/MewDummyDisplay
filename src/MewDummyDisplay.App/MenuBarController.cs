@@ -79,7 +79,7 @@ internal sealed class MenuBarController : IDisposable
         entries.Add(new MenuEntry
         {
             Title = MewDummyDisplayStrings.MenuManage.Value,
-            Handler = ShowManageWindow,
+            Handler = _manageWindow.Show,
         });
         entries.Add(MenuEntry.Separator);
         entries.Add(QuitEntry());
@@ -124,26 +124,6 @@ internal sealed class MenuBarController : IDisposable
             UseSwitch = true,
             Handler = () => Toggle(dummy),
         };
-    }
-
-    /// <summary>
-    /// Opens the management window after the menu has finished closing.
-    /// </summary>
-    /// <remarks>
-    /// A menu action runs inside the nested event loop NSMenu uses while it tracks, and a
-    /// window created there is not mapped properly: the first selection appeared to do
-    /// nothing and only a second one, which reused the already built window, showed it.
-    /// Posting the work to the dispatcher runs it on the next ordinary turn instead.
-    /// </remarks>
-    private void ShowManageWindow()
-    {
-        var dispatcher = Application.Current.Dispatcher;
-        if (dispatcher is null)
-        {
-            _manageWindow.Show();
-            return;
-        }
-        dispatcher.BeginInvoke(_manageWindow.Show);
     }
 
     private void Toggle(Dummy dummy)
