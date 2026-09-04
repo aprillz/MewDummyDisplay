@@ -25,13 +25,28 @@ macOS는 4K 미만 모니터에 HiDPI("Retina") 모드를 주지 않는다. 원�
 더미를 "정의하는 것"과 "켜는 것"은 다르다. 정의는 설정에 남고, 켜는 것은 그 순간
 macOS에 디스플레이를 붙이는 일이다. 정의는 유지한 채 꺼 둘 수 있다.
 
-## 만들기
+## 설치
 
-MewUI 와 MewVG 를 형제 디렉터리로 두고 빌드한다. 자세한 내용과 배포는
-[BUILD.md](BUILD.md).
+**빌드된 앱을 배포하지 않는다.** Releases 에 내려받을 파일이 없고, 직접 빌드해서 쓴다.
+Developer ID 인증서가 없어서 공증받은 바이너리를 낼 수 없기 때문이다.
+
+직접 빌드한 앱에는 격리 속성이 붙지 않으므로, 다운로드한 앱에 나오는 Gatekeeper 경고를
+겪을 일이 없다. 그 이유와 예외는 [BUILD.md](BUILD.md) 에 있다.
+
+MewUI 와 MewVG 를 형제 디렉터리에 둔다.
+
+```
+git clone https://github.com/aprillz/MewDummyDisplay.git
+cd MewDummyDisplay
+./build/package.sh
+open .artifacts/dist/MewDummyDisplay.app
+```
+
+## 만들기
 
 ```
 dotnet build src/MewDummyDisplay.slnx     # 라이브러리, CLI, 앱, 테스트
+dotnet test src/MewDummyDisplay.Tests
 ./build/package.sh                        # 유니버설 .app 과 zip
 ./build/package.sh --debug                # 개발용, 이 머신 아키텍처만
 ```
