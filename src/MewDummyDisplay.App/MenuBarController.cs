@@ -75,6 +75,12 @@ internal sealed class MenuBarController : IDisposable
             }
         }
 
+        if (_manager.Dummies.Count > 1)
+        {
+            entries.Add(MenuEntry.Separator);
+            entries.Add(AllEntry());
+        }
+
         entries.Add(MenuEntry.Separator);
         entries.Add(new MenuEntry
         {
@@ -126,9 +132,58 @@ internal sealed class MenuBarController : IDisposable
         };
     }
 
+    /// <summary>
+    /// The row that turns every dummy on or off at once. Only worth showing once there is
+    /// more than one, because with a single dummy it would repeat the row above it.
+    /// </summary>
+    /// <remarks>
+    /// The switch reads as "all of them are on", so it is on only when none is left off,
+    /// and the count says what a two state switch cannot when some are on and some are not.
+    /// Selecting it turns them all on unless they already are, in which case it turns them
+    /// all off, which is what a master switch is for.
+    /// </remarks>
+    private MenuEntry AllEntry()
+    {
+        int total = _manager.Dummies.Count;
+        int on = _manager.Dummies.Count(dummy => dummy.IsConnected);
+        string detail = string.Format(MewDummyDisplayStrings.MenuAllOnCount.Value, on, total);
+
+        return new MenuEntry
+        {
+            Title = $"{MewDummyDisplayStrings.MenuAllDisplays.Value}  ({detail})",
+            IsChecked = on == total,
+            UseSwitch = true,
+            Handler = () => SetAll(on < total),
+        };
+    }
+
     private void Toggle(Dummy dummy)
     {
         _manager.Toggle(dummy);
+        _manageWindow.Refresh();
+        OnChanged();
+    }
+
+    /// <summary>Connects or disconnects every dummy, skipping the ones already there.</summary>
+    private void SetAll(bool connected)
+    {
+        foreach (Dummy dummy in _manager.Dummies)
+        {
+            if (dummy.IsConnected == connected)
+            {
+                continue;
+            }
+
+            if (connected)
+            {
+                _manager.Connect(dummy);
+            }
+            else
+            {
+                _manager.Disconnect(dummy);
+            }
+        }
+
         _manageWindow.Refresh();
         OnChanged();
     }
