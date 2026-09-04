@@ -46,6 +46,12 @@ MewUI:
   (`DisplayHealth.MAX_DISPLAYS_PER_RUN`, `MAX_CYCLES_PER_RUN`).
 - 비공개 함수를 새로 시험할 때는 **한 번만** 호출하고 소요 시간을 잰다.
   느려지면 반복하지 않는다. 반복이 사고를 키웠다.
+- 더미를 만들 때마다 macOS 가 ColorSync 장치를 등록하고
+  (`/Library/Caches/ColorSync/com.apple.colorsync.devices`, root 전용) 더미를
+  없애도 등록은 남는다. 죽은 등록이 수백 개 쌓이면 디스플레이 구성이 바뀌는
+  순간 `colorsyncd` 가 100% 로 루프에 들어가고 재부팅으로도 안 풀린다.
+  등록 해제 API 는 권한으로 막혀 있으니 serial 을 고정해 등록이 늘지 않게 한다
+  (`ToolSerials`, `SelfTest.TEST_SERIAL`). 진단과 정리는 `tools/colorsync/`.
 - 실험이 멈추면 프로세스부터 정리하고 사용자에게 알린다. WindowServer 를 강제
   종료하지 않는다. 강제 로그아웃이 되어 사용자의 작업이 날아간다.
 
