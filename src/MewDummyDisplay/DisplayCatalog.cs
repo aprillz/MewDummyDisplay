@@ -7,6 +7,15 @@ namespace Aprillz.MewDummyDisplay;
 public static class DisplayCatalog
 {
     /// <summary>Every online display.</summary>
+    /// <summary>
+    /// Starts counting display configuration changes. <see cref="ConfigurationVersion"/> moves
+    /// on each one, so a caller that remembers the last value it saw knows when to look again.
+    /// </summary>
+    public static bool WatchConfiguration() => DisplayReconfigurationWatcher.Register();
+
+    /// <summary>Increments on every display configuration change once watching has started.</summary>
+    public static int ConfigurationVersion => DisplayReconfigurationWatcher.Version;
+
     public static IReadOnlyList<DisplayInfo> Online()
     {
         uint[] identifiers = new uint[CoreGraphicsInterop.MAX_DISPLAYS];

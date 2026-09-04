@@ -49,11 +49,12 @@ public static class MewDummyDisplayStrings
     public static ObservableValue<string> WindowNone { get; } = Define("None yet. Create one above.");
     public static ObservableValue<string> WindowResolution { get; } = Define("Resolution");
     public static ObservableValue<string> WindowApply { get; } = Define("Apply");
-    public static ObservableValue<string> WindowMirrorLabel { get; } = Define("Show on");
+    public static ObservableValue<string> WindowMirrorLabel { get; } = Define("Mirror to");
     public static ObservableValue<string> WindowMirrorHint { get; } = Define(
-        "Pick a monitor to show this dummy's picture, so it uses the dummy's resolution.");
-    public static ObservableValue<string> WindowMirrorNone { get; } = Define("Nothing");
+        "The monitor shows this dummy's picture and runs at the dummy's resolution.");
+    public static ObservableValue<string> WindowMirrorNone { get; } = Define("None");
     public static ObservableValue<string> WindowRemove { get; } = Define("Remove");
+    public static ObservableValue<string> WindowRemoveConfirm { get; } = Define("Remove {0}?");
     public static ObservableValue<string> WindowClose { get; } = Define("Close");
 
     // Navigation
@@ -86,7 +87,7 @@ public static class MewDummyDisplayStrings
     public static ObservableValue<string> AboutThemeDark { get; } = Define("Dark");
 
     // Dummy rows
-    public static ObservableValue<string> DummyMirroring { get; } = Define("shown on {0}");
+    public static ObservableValue<string> DummyMirroring { get; } = Define("mirrored to {0}");
     public static ObservableValue<string> DummyOff { get; } = Define("off");
     public static ObservableValue<string> WindowConnect { get; } = Define("Turn on");
     public static ObservableValue<string> WindowDisconnect { get; } = Define("Turn off");

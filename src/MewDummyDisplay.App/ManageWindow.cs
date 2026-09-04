@@ -19,6 +19,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     private Window? _window;
     private StackPanel? _dummyList;
     private StackPanel? _systemList;
+    private DispatcherTimer? _configurationWatch;
     private ComboBox? _definitionPicker;
     private CheckBox? _hiDpiToggle;
     private TextBox? _nameBox;
@@ -28,7 +29,8 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     {
         if (_window is not null)
         {
-            _window.Show();
+            // Already open: bring it forward. Show is for a window that is not yet visible.
+            _window.Activate();
             return;
         }
 
@@ -40,6 +42,8 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         _window.Closed += () =>
         {
+            _configurationWatch?.Stop();
+            _configurationWatch = null;
             _window = null;
             _dummyList = null;
             _systemList = null;
@@ -47,6 +51,40 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         _window.Show();
         Refresh();
+        WatchConfiguration();
+    }
+
+    /// <summary>
+    /// Refreshes the lists when the display configuration changes while the window is open.
+    /// </summary>
+    /// <remarks>
+    /// The system reports a change as it begins and again as it ends, and what the catalog
+    /// reads in between is transitional. So the refresh waits for one tick with no further
+    /// change, which lands after the last notification of a burst.
+    /// </remarks>
+    private void WatchConfiguration()
+    {
+        DisplayCatalog.WatchConfiguration();
+        int seenVersion = DisplayCatalog.ConfigurationVersion;
+        bool pending = false;
+
+        _configurationWatch = new DispatcherTimer(TimeSpan.FromMilliseconds(500));
+        _configurationWatch.Tick += () =>
+        {
+            int version = DisplayCatalog.ConfigurationVersion;
+            if (version != seenVersion)
+            {
+                seenVersion = version;
+                pending = true;
+                return;
+            }
+            if (pending)
+            {
+                pending = false;
+                Refresh();
+            }
+        };
+        _configurationWatch.Start();
     }
 
 
@@ -103,7 +141,12 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 Heading(MewDummyDisplayStrings.WindowExisting.Value).DockTop(),
                 new ScrollViewer()
                     .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)))
-            .Also(() => _dummyList = list);
+            .Also(() =>
+            {
+                // Pages are built when first selected, after the window's initial refresh.
+                _dummyList = list;
+                RefreshDummies();
+            });
 
     private UIElement BuildSystemPage()
         => new DockPanel()
@@ -118,7 +161,11 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                         .OnClick(RefreshSystemDisplays)),
                 new ScrollViewer()
                     .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)))
-            .Also(() => _systemList = list);
+            .Also(() =>
+            {
+                _systemList = list;
+                RefreshSystemDisplays();
+            });
 
     private UIElement BuildAboutPage()
         => new StackPanel()
@@ -154,33 +201,40 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
     private UIElement BuildCreateForm()
         => Card(new Grid()
-            .Columns("110,*,Auto")
-            .Rows("Auto,Auto,Auto")
+            .Columns("Auto,*")
+            .Rows("Auto,Auto")
             .Spacing(10)
             .Children(
                 new TextBlock().Text(MewDummyDisplayStrings.WindowAspectRatio.Value).CenterVertical(),
-                new ComboBox()
-                    .Ref(out ComboBox picker)
+                // Each input keeps its companion in a dock of its own, so the companions do
+                // not share a grid column and neither one sizes the other's row.
+                new DockPanel()
                     .Column(1)
-                    .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
-                    .SelectedIndex(0),
-                new CheckBox()
-                    .Ref(out CheckBox hiDpi)
-                    .Column(2)
-                    .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
-                    .IsChecked(true)
-                    .CenterVertical(),
+                    .Spacing(10)
+                    .Children(
+                        new CheckBox()
+                            .Ref(out CheckBox hiDpi)
+                            .DockRight()
+                            .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
+                            .IsChecked(true)
+                            .CenterVertical(),
+                        new ComboBox()
+                            .Ref(out ComboBox picker)
+                            .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
+                            .SelectedIndex(0)),
                 new TextBlock().Text(MewDummyDisplayStrings.WindowName.Value).Row(1).CenterVertical(),
-                new TextBox()
-                    .Ref(out TextBox nameBox)
+                new DockPanel()
                     .Row(1)
                     .Column(1)
-                    .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value),
-                new Button()
-                    .Row(1)
-                    .Column(2)
-                    .Content(MewDummyDisplayStrings.WindowCreate.Value)
-                    .OnClick(CreateDummy)))
+                    .Spacing(10)
+                    .Children(
+                        new Button()
+                            .DockRight()
+                            .Content(MewDummyDisplayStrings.WindowCreate.Value)
+                            .OnClick(CreateDummy),
+                        new TextBox()
+                            .Ref(out TextBox nameBox)
+                            .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value))))
             .Also(() =>
             {
                 _definitionPicker = picker;
@@ -270,9 +324,10 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                         MirrorSuffix(dummy)),
                 new Grid()
                     .Columns("Auto,*,Auto")
-                    .Rows("Auto,Auto")
+                    .Rows("Auto,Auto,Auto,Auto")
                     .Spacing(8)
                     .Children(
+                    [
                         new TextBlock().Text(MewDummyDisplayStrings.WindowResolution.Value).CenterVertical(),
                         new ComboBox()
                             .Ref(out ComboBox resolution)
@@ -289,13 +344,9 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                             .Row(1)
                             .Column(2)
                             .Content(MewDummyDisplayStrings.WindowRename.Value)
-                            .OnClick(() => RenameDummy(dummy, rename.Text))),
-                BuildMirrorRow(dummy),
-                new StackPanel()
-                    .Horizontal()
-                    .Spacing(8)
-                    .Children(
-                        IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
+                            .OnClick(() => RenameDummy(dummy, rename.Text)),
+                        .. MirrorRows(dummy, row: 2),
+                    ])));
     }
 
     /// <summary>
@@ -307,7 +358,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// what mirrors the dummy. Naming the monitor in the list, rather than offering an on
     /// and off button against an unnamed "main display", is what makes that readable.
     /// </remarks>
-    private Grid BuildMirrorRow(Dummy dummy)
+    private Element[] MirrorRows(Dummy dummy, int row)
     {
         List<DisplayInfo> candidates =
         [
@@ -322,18 +373,19 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             ? 0
             : candidates.FindIndex(display => display.DisplayId == showingIt.DisplayId) + 1;
 
-        return new Grid()
-            .Columns("Auto,*")
-            .Rows("Auto,Auto")
-            .Spacing(8)
-            .Children(
-                new TextBlock().Text(MewDummyDisplayStrings.WindowMirrorLabel.Value).CenterVertical(),
-                new ComboBox()
-                    .Column(1)
-                    .Items([.. options])
-                    .SelectedIndex(Math.Max(0, selected))
-                    .OnSelectionChanged(value => ApplyMirror(dummy, candidates, options.IndexOf(value as string ?? ""))),
-                Muted(MewDummyDisplayStrings.WindowMirrorHint.Value).Row(1).Column(1));
+        // Same grid as the rows above, so the label column is sized once for all of them.
+        return
+        [
+            new TextBlock().Text(MewDummyDisplayStrings.WindowMirrorLabel.Value).Row(row).CenterVertical(),
+            new ComboBox()
+                .Row(row)
+                .Column(1)
+                .ColumnSpan(2)
+                .Items([.. options])
+                .SelectedIndex(Math.Max(0, selected))
+                .OnSelectionChanged(value => ApplyMirror(dummy, candidates, options.IndexOf(value as string ?? ""))),
+            Muted(MewDummyDisplayStrings.WindowMirrorHint.Value).Row(row + 1).Column(1).ColumnSpan(2),
+        ];
     }
 
     private static string DisplayLabel(DisplayInfo display)
@@ -356,7 +408,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         DisplayInfo? showingIt = DisplayCatalog.DisplaysMirroring(dummy.DisplayId).FirstOrDefault();
         return showingIt is null
             ? ""
-            : "  " + string.Format(MewDummyDisplayStrings.DummyMirroring.Value, $"Display {showingIt.DisplayId}");
+            : "  " + string.Format(MewDummyDisplayStrings.DummyMirroring.Value, DisplayName(showingIt));
     }
 
     /// <summary>A dummy that is defined but turned off has no display to describe.</summary>
@@ -364,21 +416,18 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         => Card(new StackPanel()
             .Spacing(10)
             .Children(
-                PowerHeader(dummy, Icons.DisplayOutline(20), $"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}"),
-                new StackPanel()
-                    .Horizontal()
-                    .Spacing(8)
-                    .Children(
-                        IconButton(MewDummyDisplayStrings.WindowRemove.Value, Icons.Remove(), () => Remove(dummy)))));
+                PowerHeader(dummy, Icons.DisplayOutline(20), $"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}")));
 
     /// <summary>
-    /// Card header: icon, name, one line of detail, and the switch that turns the display
-    /// on or off. A switch rather than a button, because this is a state that stays, not an
-    /// action that happens once.
+    /// Card header: icon, name, one line of detail, a flat remove button, and the switch
+    /// that turns the display on or off. A switch rather than a button, because this is a
+    /// state that stays, not an action that happens once. Remove sits here, by the name,
+    /// as an icon with a tooltip: it is the one destructive action and does not need a
+    /// row of its own.
     /// </summary>
     private Grid PowerHeader(Dummy dummy, Element icon, string detail)
         => new Grid()
-            .Columns("Auto,*,Auto")
+            .Columns("Auto,*,Auto,Auto")
             .Children(
                 icon,
                 new StackPanel()
@@ -388,8 +437,16 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     .Children(
                         new TextBlock().Text(dummy.Name).Bold(),
                         Muted(detail)),
-                new ToggleSwitch()
+                new Button()
                     .Column(2)
+                    .StyleName("flat-button")
+                    .Content(Icons.Remove())
+                    .ToolTip(MewDummyDisplayStrings.WindowRemove.Value)
+                    .CenterVertical()
+                    .Margin(0, 0, 6, 0)
+                    .OnClick(() => Remove(dummy)),
+                new ToggleSwitch()
+                    .Column(3)
                     .CenterVertical()
                     .IsChecked(dummy.IsConnected)
                     .OnCheckedChanged(_ => ToggleConnected(dummy)));
@@ -497,6 +554,16 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
     private void Remove(Dummy dummy)
     {
+        // The one action here that cannot be undone from the window, so it asks first.
+        bool confirmed = MessageBox.Confirm(
+            string.Format(MewDummyDisplayStrings.WindowRemoveConfirm.Value, dummy.Name),
+            PromptIconKind.Question,
+            owner: _window);
+        if (!confirmed)
+        {
+            return;
+        }
+
         manager.Remove(dummy);
         Refresh();
         onChanged();
@@ -520,14 +587,6 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 border.CornerRadius(theme.Metrics.ControlCornerRadius);
             })
             .Child(content);
-
-    private static Button IconButton(string text, Element icon, Action onClick)
-        => new Button()
-            .OnClick(onClick)
-            .Content(new StackPanel()
-                .Horizontal()
-                .Spacing(6)
-                .Children(icon, new TextBlock().Text(text).CenterVertical()));
 
     private sealed record NavigationPage(string Title, Element Icon, Func<UIElement> Build);
 }
