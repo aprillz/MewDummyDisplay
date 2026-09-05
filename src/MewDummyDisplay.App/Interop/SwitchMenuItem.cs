@@ -48,7 +48,6 @@ internal static class SwitchMenuItem
         ObjC.SendVoid_Ptr(field, AppKitInterop.SelSetStringValue, text);
         ObjC.Release(text);
 
-        // A plain label: no border, no background, not interactive.
         AppKitInterop.SendVoid_Byte(field, AppKitInterop.SelSetBezeled, 0);
         AppKitInterop.SendVoid_Byte(field, AppKitInterop.SelSetDrawsBackground, 0);
         AppKitInterop.SendVoid_Byte(field, AppKitInterop.SelSetEditable, 0);

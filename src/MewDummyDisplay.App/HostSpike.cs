@@ -3,9 +3,7 @@ using Aprillz.MewUI;
 
 namespace Aprillz.MewDummyDisplay.App;
 
-// Phase 2.2: can MewUI host a menu bar only application?
-//
-// Two things have to hold. MewUI must run with no window open, and the accessory
+// Checks that MewUI can host a menu bar only application. Two things have to hold. MewUI must run with no window open, and the accessory
 // activation policy has to survive: MewUI sets NSApplicationActivationPolicyRegular
 // while starting up, which would put a Dock icon on a menu bar utility.
 internal static class HostSpike

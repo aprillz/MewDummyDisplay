@@ -2,8 +2,7 @@ using Aprillz.MewDummyDisplay;
 
 namespace Aprillz.MewDummyDisplay.Cli;
 
-// Phase 0 feasibility checks. Each check answers one open question in
-// agent/better-dummy-porting/plan.md and prints a PASS or FAIL line.
+// Checks that virtual displays work on the running system. Each one prints PASS or FAIL.
 //
 // Display registration and teardown are asynchronous. Creating and releasing
 // displays back to back makes CoreGraphics report stale or empty values, so every

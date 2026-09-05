@@ -57,6 +57,7 @@ internal static class AppKitInterop
     internal static readonly nint NSMenuItem = ObjC.RequireClass("NSMenuItem");
     internal static readonly nint NSImage = ObjC.RequireClass("NSImage");
     internal static readonly nint NSColor = ObjC.RequireClass("NSColor");
+    internal static readonly nint NSWorkspace = ObjC.RequireClass("NSWorkspace");
     internal static readonly nint NSArray = ObjC.RequireClass("NSArray");
     internal static readonly nint NSImageSymbolConfiguration = ObjC.RequireClass("NSImageSymbolConfiguration");
     internal static readonly nint NSView = ObjC.RequireClass("NSView");
@@ -124,6 +125,9 @@ internal static class AppKitInterop
     [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
     internal static extern byte SendBool(nint receiver, nint selector);
 
+    [DllImport(LIBOBJC, EntryPoint = "objc_msgSend")]
+    internal static extern byte SendBool_Ptr_Ptr(nint receiver, nint selector, nint first, nint second);
+
     internal static readonly nint SelActivationPolicy = ObjC.Sel("activationPolicy");
 
     /// <summary>The shared NSApplication instance.</summary>
@@ -140,6 +144,29 @@ internal static class AppKitInterop
     /// <summary>Reapplies the accessory policy, which other hosts may have overwritten.</summary>
     internal static void ApplyAccessoryPolicy()
         => SendVoid_Long(SharedApplication(), SelSetActivationPolicy, ACTIVATION_POLICY_ACCESSORY);
+
+    /// <summary>
+    /// Opens a folder in Finder.
+    /// </summary>
+    /// <remarks>
+    /// Finder does the opening, so this works on paths the application itself cannot read.
+    /// That is the point here: the colour profiles macOS writes for a display live in a
+    /// root owned folder, and deleting one is something the person has to do, with Finder
+    /// asking for their password. All the application can do is take them there.
+    /// </remarks>
+    internal static void ShowFolderInFinder(string path)
+    {
+        nint workspace = ObjC.SendPtr(NSWorkspace, ObjC.Sel("sharedWorkspace"));
+        nint folder = ObjC.NewString(path);
+        try
+        {
+            SendBool_Ptr_Ptr(workspace, ObjC.Sel("selectFile:inFileViewerRootedAtPath:"), 0, folder);
+        }
+        finally
+        {
+            ObjC.Release(folder);
+        }
+    }
 
     /// <summary>Reads the current activation policy.</summary>
     internal static long CurrentActivationPolicy()

@@ -68,8 +68,8 @@ public sealed class DummyManager : IDisposable
 
     /// <summary>
     /// Whether to subscribe to display reconfiguration notifications before creating.
-    /// Under investigation: the subscription may be what stops this process from
-    /// reading back the modes of displays it created.
+    /// The subscription is what refreshes this process's snapshot of the display
+    /// configuration, so its own displays report their bounds.
     /// </summary>
     public static bool WatchReconfiguration { get; set; } = true;
 
@@ -248,8 +248,7 @@ public sealed class DummyManager : IDisposable
         (int maxWidth, int maxHeight) = definition.PixelsFor(definition.MaxMultiplier);
         double refreshRate = dummy.Spec.RefreshRateOverride ?? DummySpec.FIXED_REFRESH_RATE;
 
-        // Only the curated sizes go to the display. Offering every multiplier floods the
-        // System Settings resolution list with hundreds of near-identical entries.
+        // Only the curated sizes go to the display, not every multiplier.
         List<VirtualDisplayMode> modes = [];
         foreach ((int width, int height) in definition.CommonResolutions(dummy.Spec.ResolutionCount))
         {

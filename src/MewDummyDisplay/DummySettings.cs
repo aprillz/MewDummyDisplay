@@ -53,9 +53,8 @@ public sealed record GeneralSettings
     /// Null means the file predates the gate, which reads as open.
     /// </summary>
     /// <remarks>
-    /// Nullable rather than a bool that defaults to true, because the source generated
-    /// serializer does not run property initializers: a file without the key came back
-    /// false, and every dummy stayed off on the first run after the gate was added.
+    /// Nullable rather than a bool defaulting to true, because the source generated
+    /// serializer does not run property initializers: a missing key reads as false.
     /// </remarks>
     public bool? Enabled { get; init; }
 

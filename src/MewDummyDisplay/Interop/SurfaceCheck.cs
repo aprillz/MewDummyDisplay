@@ -11,7 +11,7 @@ internal static class SurfaceCheck
         "CGVirtualDisplaySettings",
     ];
 
-    /// <summary>Returns the missing classes and selectors. An empty result means the surface is intact.</summary>
+    /// <summary>The missing classes and selectors. Empty means the surface is intact.</summary>
     internal static IReadOnlyList<string> FindMissing()
     {
         List<string> missing = [];

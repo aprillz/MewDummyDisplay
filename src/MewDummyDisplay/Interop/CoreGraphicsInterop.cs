@@ -18,7 +18,7 @@ internal static class CoreGraphicsInterop
     /// <summary>kCGConfigureForSession.</summary>
     internal const uint CONFIGURE_FOR_SESSION = 1;
 
-    /// <summary>kCGConfigurePermanently.</summary>
+    /// <summary>Keeps the change across logins, rather than for this session only.</summary>
     internal const uint CONFIGURE_PERMANENTLY = 2;
 
     [DllImport(LIBSYSTEM)]

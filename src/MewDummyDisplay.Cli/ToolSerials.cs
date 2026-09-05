@@ -1,10 +1,7 @@
 namespace Aprillz.MewDummyDisplay.Cli;
 
-// macOS identifies a display by its serial, generates a ColorSync profile for each new
-// identity, and keeps that profile forever. Command line runs that draw a random serial
-// therefore leave a profile behind every single time; a few hundred test runs left a few
-// hundred files. So the tool derives a stable serial from the definition id instead, and
-// reuses one identity per ratio no matter how often it runs.
+// Derives a serial from the definition id so that repeated runs reuse one identity per
+// ratio. See DummyRecord.SerialNumber for why that matters.
 internal static class ToolSerials
 {
     /// <summary>High bit set, to keep tool identities away from the app's random ones.</summary>

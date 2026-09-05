@@ -2,9 +2,8 @@ using Aprillz.MewDummyDisplay.Interop;
 
 namespace Aprillz.MewDummyDisplay.App;
 
-// Proves the riskiest piece of the GUI before the real one is built: that a menu bar
-// item can dispatch clicks into C#, including from a NativeAOT binary where the callback
-// has to be an UnmanagedCallersOnly function pointer.
+// Checks that a menu bar item dispatches clicks into C#, including from a NativeAOT
+// binary, where the callback has to be an UnmanagedCallersOnly function pointer.
 //
 // The self test sends the action selector to the target with each menu item as sender,
 // which is exactly what AppKit does on a click, so the dispatch path is verified without

@@ -3,8 +3,8 @@ using Aprillz.MewDummyDisplay;
 
 namespace Aprillz.MewDummyDisplay.Cli;
 
-// Guardrail added after an experiment wedged the window server for a whole login
-// session. Display enumeration stopped returning at all, and only a reboot cleared it.
+// Rapid create and release can wedge the window server for a whole login session:
+// display enumeration stops returning at all, and only a reboot clears it.
 //
 // Every command that creates displays checks here first and aborts when the display
 // subsystem is already slow. A wedged session cannot be repaired from user space, so

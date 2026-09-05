@@ -56,7 +56,8 @@ public sealed class Dummy : IDisposable
 
     /// <summary>Blocks until the display registers, or the timeout expires.</summary>
     /// <remarks>
-    /// Pumps the run loop rather than sleeping, so queued notifications are delivered.
+    /// Pumps the run loop where <see cref="DummyManager.PumpRunLoopWhileWaiting"/> allows
+    /// it, so queued notifications are delivered instead of slept through.
     /// </remarks>
     public bool WaitUntilReady(TimeSpan timeout)
     {

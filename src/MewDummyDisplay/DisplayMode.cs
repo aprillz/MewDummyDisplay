@@ -11,11 +11,13 @@ public sealed record DisplayMode
     /// <summary>Logical size, which is what the desktop is laid out in.</summary>
     public required int Width { get; init; }
 
+    /// <inheritdoc cref="Width"/>
     public required int Height { get; init; }
 
     /// <summary>Physical size. Larger than the logical size on HiDPI modes.</summary>
     public required int PixelWidth { get; init; }
 
+    /// <inheritdoc cref="PixelWidth"/>
     public required int PixelHeight { get; init; }
 
     public required double RefreshRate { get; init; }

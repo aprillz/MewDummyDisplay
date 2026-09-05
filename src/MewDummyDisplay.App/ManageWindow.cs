@@ -1,3 +1,4 @@
+using Aprillz.MewDummyDisplay.Interop;
 using Aprillz.MewUI;
 using Aprillz.MewUI.Controls;
 
@@ -10,8 +11,7 @@ namespace Aprillz.MewDummyDisplay.App;
 ///
 /// Dummy rows are rebuilt explicitly rather than bound to an ItemsSource. Rows carry their
 /// own editors, and swapping ItemsSource under an active editor replaces its container and
-/// loses focus. Below roughly a hundred rows the explicit rebuild is the simpler and safer
-/// choice; past that, move to ItemsSource with a typed ItemTemplate so containers recycle.
+/// loses focus.
 /// </remarks>
 internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 {
@@ -19,6 +19,9 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     private Window? _window;
     private StackPanel? _dummyList;
     private StackPanel? _systemList;
+    /// <summary>Where macOS writes the colour profile it generates for each display.</summary>
+    private const string DISPLAY_PROFILE_FOLDER = "/Library/ColorSync/Profiles/Displays";
+
     private ToggleSwitch? _masterSwitch;
     private bool _updatingMaster;
     private DispatcherTimer? _configurationWatch;
@@ -31,14 +34,15 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     {
         if (_window is not null)
         {
-            // Already open: bring it forward. Show is for a window that is not yet visible.
             _window.Activate();
             return;
         }
 
         _window = new Window()
             .Title(MewDummyDisplayStrings.WindowTitle.Value)
-            .Resizable(760, 560)
+            // Tall enough that two dummies fit without the list scrolling, which is the
+            // arrangement this is built for: one to mirror and one spare.
+            .Resizable(760, 580)
             .Padding(0)
             .Content(BuildShell());
 
@@ -175,8 +179,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                             .Column(1)
                             .CenterVertical()
                             .IsChecked(manager.IsEnabled)
-                            .OnCheckedChanged(_ => SetEnabled(master.IsChecked))),
-                Hairline())
+                            .OnCheckedChanged(_ => SetEnabled(master.IsChecked))))
             .Also(() => _masterSwitch = master);
 
     /// <summary>
@@ -225,6 +228,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 Heading(MewDummyDisplayStrings.PageSystem.Value).DockTop(),
                 // No refresh button: the window watches the display configuration and
                 // rebuilds this list whenever it changes.
+                BuildProfileFolderRow().DockBottom(),
                 new ScrollViewer()
                     .Content(new StackPanel().Ref(out StackPanel list).Spacing(10)))
             .Also(() =>
@@ -232,6 +236,35 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 _systemList = list;
                 RefreshSystemDisplays();
             });
+
+    /// <summary>The theme modes in the order the segmented control lists them.</summary>
+    private static readonly ThemeVariant[] _themeModes =
+        [ThemeVariant.System, ThemeVariant.Light, ThemeVariant.Dark];
+
+    private static int ThemeModeIndex(ThemeVariant mode) => Math.Max(0, Array.IndexOf(_themeModes, mode));
+
+    /// <summary>
+    /// A way to the colour profiles macOS keeps for displays that no longer exist.
+    /// </summary>
+    /// <remarks>
+    /// The application cannot delete them: the folder belongs to root, and the registration
+    /// behind them refuses removal even so. Finder asks for the password from there.
+    /// </remarks>
+    private UIElement BuildProfileFolderRow()
+        => Card(new Grid()
+            .Columns("*,Auto")
+            .Children(
+                new StackPanel()
+                    .Spacing(3)
+                    .Margin(0, 0, 12, 0)
+                    .Children(
+                        new TextBlock().Text(MewDummyDisplayStrings.SystemProfiles.Value).Bold(),
+                        Muted(MewDummyDisplayStrings.SystemProfilesHint.Value)),
+                new Button()
+                    .Column(1)
+                    .CenterVertical()
+                    .Content(MewDummyDisplayStrings.SystemProfilesShow.Value)
+                    .OnClick(() => AppKitInterop.ShowFolderInFinder(DISPLAY_PROFILE_FOLDER))));
 
     private UIElement BuildAboutPage()
         => new StackPanel()
@@ -243,6 +276,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     .Children(
                         Icons.Display(32),
                         new StackPanel()
+                            .CenterVertical()
                             .Spacing(2)
                             .Children(
                                 new TextBlock().Text(MewDummyDisplayStrings.WindowTitle.Value).FontSize(20).Bold(),
@@ -252,31 +286,34 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 Muted(MewDummyDisplayStrings.AboutReference.Value),
                 new Separator(),
                 new TextBlock().Text(MewDummyDisplayStrings.AboutTheme.Value).Bold(),
+                // One setting with three values, and the selected segment is the value.
                 new StackPanel()
                     .Horizontal()
-                    .Spacing(8)
                     .Children(
-                        new Button().Content(MewDummyDisplayStrings.AboutThemeSystem.Value)
-                            .OnClick(() => Application.Current.SetThemeMode(ThemeVariant.System)),
-                        new Button().Content(MewDummyDisplayStrings.AboutThemeLight.Value)
-                            .OnClick(() => Application.Current.SetThemeMode(ThemeVariant.Light)),
-                        new Button().Content(MewDummyDisplayStrings.AboutThemeDark.Value)
-                            .OnClick(() => Application.Current.SetThemeMode(ThemeVariant.Dark))));
+                        new SegmentedControl()
+                            .Ref(out SegmentedControl themes)
+                            .Items(
+                                MewDummyDisplayStrings.AboutThemeSystem.Value,
+                                MewDummyDisplayStrings.AboutThemeLight.Value,
+                                MewDummyDisplayStrings.AboutThemeDark.Value)
+                            .SelectedIndex(ThemeModeIndex(Application.Current.ThemeMode))
+                            .OnSelectionChanged(_ => Application.Current.SetThemeMode(
+                                _themeModes[Math.Clamp(themes.SelectedIndex, 0, _themeModes.Length - 1)]))));
 
     // Create form
 
     /// <summary>
-    /// Creating a dummy, on one line.
+    /// Creating a dummy, in the order the decisions are made.
     /// </summary>
     /// <remarks>
-    /// It was three rows of label and field, which is a form for something done once in a
-    /// while sitting permanently above the list that is the reason to open this window. The
-    /// controls carry their own meaning here: a ratio, a name, a checkbox that says HiDPI,
-    /// and the button that does it.
+    /// The first line is what the display is, the ratio and whether it is Retina. The
+    /// second is what to call it and the button that does it, so the path runs to the
+    /// action without turning back.
     /// </remarks>
     private UIElement BuildCreateForm()
         => Card(new Grid()
-            .Columns("Auto,*,Auto,Auto")
+            .Columns("Auto,*,Auto")
+            .Rows("Auto,Auto")
             .Spacing(10)
             .Children(
                 // Wide enough for the longest entry, "21.3:9 (UltraWide)". Sizing to the
@@ -286,18 +323,20 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     .Width(180)
                     .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
                     .SelectedIndex(0),
-                new TextBox()
-                    .Ref(out TextBox nameBox)
-                    .Column(1)
-                    .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value),
                 new CheckBox()
                     .Ref(out CheckBox hiDpi)
-                    .Column(2)
+                    .Column(1)
                     .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
                     .IsChecked(true)
                     .CenterVertical(),
+                new TextBox()
+                    .Ref(out TextBox nameBox)
+                    .Row(1)
+                    .ColumnSpan(2)
+                    .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value),
                 new Button()
-                    .Column(3)
+                    .Row(1)
+                    .Column(2)
                     .Content(MewDummyDisplayStrings.WindowCreate.Value)
                     .OnClick(CreateDummy)))
             .Also(() =>
@@ -365,14 +404,8 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     {
         bool live = dummy.IsConnected;
 
-        // The display is already created with a curated set of sizes, so this only drops
-        // the low resolution twin of each one: supplying a Retina resolution is why a dummy
-        // exists, and showing both variants of every size doubles the list for nothing.
-        //
-        // Largest first, because that is the end of the list anyone is here for.
-        //
-        // A display that is off reports no modes, so its sizes come from the definition it
-        // was built from, which is where the display's own list came from in the first place.
+        // Only the Retina twin of each size, largest first. A display that is off reports
+        // no modes, so its sizes come from the definition the display was built from.
         List<DisplayMode> modes = live
             ? [.. dummy.Modes()
                 .Where(mode => mode.IsHiDpi)
@@ -416,7 +449,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         return Card(new StackPanel()
             .Spacing(10)
             .Children(
-                PowerHeader(dummy, live ? Icons.Display(20) : Icons.DisplayOutline(20), detail),
+                PowerHeader(dummy, live ? Icons.Display(24) : Icons.DisplayOutline(24), detail),
                 new Grid()
                     .Columns("Auto,*,Auto")
                     .Rows("Auto,Auto,Auto")
@@ -424,11 +457,13 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     .Children(
                     [
                         new TextBlock().Text(MewDummyDisplayStrings.WindowResolution.Value).CenterVertical(),
+                        // Nothing is selected while the display is off: it has no current
+                        // mode, and the first of the list would name one it does not have.
                         new ComboBox()
                             .Ref(out ComboBox resolution)
                             .Column(1)
                             .Items([.. modes.Select(mode => $"{mode.Width} x {mode.Height}")])
-                            .SelectedIndex(Math.Max(0, current))
+                            .SelectedIndex(current)
                             .IsEnabled(live),
                         new Button()
                             .Column(2)
@@ -450,11 +485,9 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// Chooses which monitor shows this dummy's picture.
     /// </summary>
     /// <remarks>
-    /// The direction is the whole point and easy to invert. A dummy supplies a resolution
-    /// the monitor cannot offer by itself, so the monitor is what mirrors the dummy. Naming
-    /// the monitors in the list, rather than an on and off button against an unnamed "main
-    /// display", is what carries that, and it carries it in every card without a sentence
-    /// underneath repeating itself once per dummy.
+    /// The direction is easy to invert. A dummy supplies a resolution the monitor cannot
+    /// offer by itself, so the monitor is what mirrors the dummy, and naming the monitors
+    /// in the list is what says so.
     /// </remarks>
     private Element[] MirrorRows(Dummy dummy, int row, bool isEnabled)
     {
@@ -513,11 +546,8 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
 
     /// <summary>
-    /// Card header: icon, name, one line of detail, a flat remove button, and the switch
-    /// that turns the display on or off. A switch rather than a button, because this is a
-    /// state that stays, not an action that happens once. Remove sits here, by the name,
-    /// as an icon with a tooltip: it is the one destructive action and does not need a
-    /// row of its own.
+    /// Card header: icon, name, one line of detail, a flat remove button, and the switch.
+    /// A switch rather than a button, because being on is a state that stays.
     /// </summary>
     private Grid PowerHeader(Dummy dummy, Element icon, string detail)
         => new Grid()
@@ -585,9 +615,10 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 .Horizontal()
                 .Spacing(10)
                 .Children(
-                    Icons.DisplayOutline(20),
+                    Icons.DisplayOutline(24),
                     new StackPanel()
                         .Spacing(2)
+                        .CenterVertical()
                         .Children(
                             new TextBlock().Text(DisplayName(display) +
                                 (tags.Count > 0 ? $"  ({string.Join(", ", tags)})" : "")).Bold(),
@@ -673,12 +704,6 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// </summary>
     private static TextBlock Muted(string text)
         => new TextBlock().Text(text).WithTheme((theme, block) => block.Foreground(theme.Palette.PlaceholderText));
-
-    /// <summary>A one pixel rule in the same colour the cards use for their edge.</summary>
-    private static Border Hairline()
-        => new Border()
-            .Height(1)
-            .WithTheme((theme, border) => border.Background(theme.Palette.ControlBorder));
 
     private static Border Card(UIElement content)
         => new Border()

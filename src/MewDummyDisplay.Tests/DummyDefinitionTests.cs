@@ -115,8 +115,7 @@ public sealed class DummyDefinitionTests
     [DataRow(12)]
     public void CommonResolutions_Keep1080pEvenWhenShort(int targetCount)
     {
-        // The earlier even-stride approach dropped 1920x1080 at small counts, because 60
-        // is not a multiple of the stride that produced few enough entries.
+        // 1080p survives every target count, however short the list gets.
         DummyDefinition definition = new("16:9", DummyDefinitionKind.Wide, 16, 9, 2);
 
         Assert.Contains((1920, 1080), definition.CommonResolutions(targetCount));

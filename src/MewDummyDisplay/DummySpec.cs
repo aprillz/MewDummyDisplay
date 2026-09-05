@@ -32,9 +32,7 @@ public sealed record DummySpec
     /// How many resolutions the display offers.
     /// </summary>
     /// <remarks>
-    /// Every multiplier would be over two hundred sizes in sixteen pixel steps, and macOS
-    /// shows all of them in System Settings, which buries the useful ones. The curated set
-    /// keeps the familiar sizes and stays short enough to read.
+    /// How long <see cref="DummyDefinition.CommonResolutions"/> makes its list.
     /// </remarks>
     public int ResolutionCount { get; init; } = 8;
 

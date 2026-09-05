@@ -2,11 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace Aprillz.MewDummyDisplay.Cli;
 
-// Phase 1 research: displays created after the first are active with correct bounds,
-// yet CGDisplayCopyDisplayMode returns null for them. CoreGraphics caches display
+// Measures what a run loop buys a console tool. CoreGraphics caches the display
 // configuration per process and refreshes it from reconfiguration notifications, which
-// are delivered through the run loop. A console tool has no run loop, so this pumps one
-// briefly to test whether that is the missing piece.
+// arrive through the run loop, so a tool with none reads stale values for its own displays.
 internal static class RunLoopProbe
 {
     private const string CORE_FOUNDATION = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation";

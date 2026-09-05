@@ -6,18 +6,16 @@ namespace Aprillz.MewDummyDisplay.App;
 // with a menu item as sender. That exercises the whole path, from the row a person would
 // click through to the virtual display, with nobody clicking.
 //
-// Creation and removal moved to the window, so those go through the library the way the
-// window does. What the tray still owns, turning a display on and off, is driven through
-// the menu itself, because that dispatch is the fragile part worth proving.
+// Turning a display on and off is driven through the menu, because that dispatch is the
+// fragile part. Creating and removing goes through the library, as the window does.
 internal static class SelfTest
 {
     /// <summary>
     /// A fixed identity for the test display.
     /// </summary>
     /// <remarks>
-    /// macOS identifies a display by its serial and writes a ColorSync profile per
-    /// identity that it then keeps forever. A random serial would leave one more profile
-    /// behind on every run, so the test reuses a single one.
+    /// Fixed so that repeated runs reuse one identity. See
+    /// <see cref="DummyRecord.SerialNumber"/>.
     /// </remarks>
     private const uint TEST_SERIAL = 0x5E1F7E57;
 

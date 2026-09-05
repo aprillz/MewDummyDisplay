@@ -75,6 +75,10 @@ public static class MewDummyDisplayStrings
     public static ObservableValue<string> SystemMain { get; } = Define("Main");
     public static ObservableValue<string> SystemVirtual { get; } = Define("Virtual");
     public static ObservableValue<string> SystemModes { get; } = Define("modes");
+    public static ObservableValue<string> SystemProfiles { get; } = Define("Colour profiles");
+    public static ObservableValue<string> SystemProfilesHint { get; } = Define(
+        "macOS keeps one per display, including ones that are gone.");
+    public static ObservableValue<string> SystemProfilesShow { get; } = Define("Show in Finder");
 
     // About page
     public static ObservableValue<string> AboutSummary { get; } = Define(

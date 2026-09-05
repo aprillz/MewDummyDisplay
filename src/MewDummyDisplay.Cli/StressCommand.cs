@@ -2,10 +2,9 @@ using Aprillz.MewDummyDisplay;
 
 namespace Aprillz.MewDummyDisplay.Cli;
 
-// Answers a Phase 1 question: does repeated create/release degrade CoreGraphics
-// because of how fast operations arrive, or because of how many have happened in
-// this process? A gap that fixes it means rate; failure regardless of gap means
-// the process accumulates state, which matters for a long running GUI app.
+// Tells apart the two ways repeated create and release degrades CoreGraphics. A gap that
+// fixes it means the rate is what matters; failure regardless of gap means the process
+// accumulates state, which is what a long running GUI application has to live with.
 internal static class StressCommand
 {
     internal static int Run(string[] args)

@@ -5,10 +5,8 @@ namespace Aprillz.MewDummyDisplay.App;
 
 /// <summary>Reads and writes the settings file.</summary>
 /// <remarks>
-/// This is load bearing, not a convenience. macOS identifies a display by its serial and
-/// keeps a ColorSync profile per identity forever, so a dummy that draws a new random
-/// serial on every run leaves a profile behind each time. Remembering serials is what
-/// keeps one dummy as one display, which is why the original app persisted them too.
+/// Load bearing rather than a convenience: the serials it remembers are what keep one
+/// dummy as one display to macOS. See <see cref="DummyRecord.SerialNumber"/>.
 /// </remarks>
 internal static class SettingsStore
 {

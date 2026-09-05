@@ -3,14 +3,10 @@ namespace Aprillz.MewDummyDisplay.Interop;
 /// <summary>The only place that calls the private CGVirtualDisplay classes.</summary>
 internal static class VirtualDisplayFactory
 {
-    // CIE xy chromaticity of the sRGB primaries and of D65 white.
-    //
-    // These are chromaticities, where x + y <= 1 and z is whatever is left over, and not
-    // the XYZ tristimulus values that an ICC profile stores. Feeding XYZ values here, as
-    // the reference implementation did with the numbers out of Generic RGB Profile.icc,
-    // produced a white point of (0.950, 1.000), whose z comes out at -0.95. macOS built
-    // the display's colour profile from that, negative Z and all, and everything mirrored
-    // onto the dummy looked washed out.
+    // CIE xy chromaticities of the sRGB primaries and of D65 white. Chromaticities, where
+    // x + y is at most one, and not the XYZ tristimulus values an ICC profile stores: macOS
+    // builds the display's colour profile from these, and XYZ values read as xy put the
+    // white point outside the visible gamut.
     private static readonly CGPoint _whitePoint = new(0.3127, 0.3290);
     private static readonly CGPoint _redPrimary = new(0.6400, 0.3300);
     private static readonly CGPoint _greenPrimary = new(0.3000, 0.6000);

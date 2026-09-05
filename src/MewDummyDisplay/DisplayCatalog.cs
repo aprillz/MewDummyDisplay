@@ -6,7 +6,6 @@ namespace Aprillz.MewDummyDisplay;
 /// <summary>Enumerates attached displays and configures mirroring.</summary>
 public static class DisplayCatalog
 {
-    /// <summary>Every online display.</summary>
     /// <summary>
     /// Starts counting display configuration changes. <see cref="ConfigurationVersion"/> moves
     /// on each one, so a caller that remembers the last value it saw knows when to look again.
@@ -16,6 +15,7 @@ public static class DisplayCatalog
     /// <summary>Increments on every display configuration change once watching has started.</summary>
     public static int ConfigurationVersion => DisplayReconfigurationWatcher.Version;
 
+    /// <summary>Every online display.</summary>
     public static IReadOnlyList<DisplayInfo> Online()
     {
         uint[] identifiers = new uint[CoreGraphicsInterop.MAX_DISPLAYS];
@@ -287,8 +287,14 @@ public static class DisplayCatalog
         => Configure(displayId, sourceDisplayId);
 
     /// <summary>Displays currently showing the contents of <paramref name="sourceDisplayId"/>.</summary>
+    /// <remarks>
+    /// Zero is not a display, and CGDisplayMirrorsDisplay reports zero for a display that
+    /// mirrors nothing, so asking about zero would answer with every ordinary display.
+    /// </remarks>
     public static IReadOnlyList<DisplayInfo> DisplaysMirroring(uint sourceDisplayId)
-        => [.. Online().Where(display => display.MirrorsDisplayId == sourceDisplayId)];
+        => sourceDisplayId == 0
+            ? []
+            : [.. Online().Where(display => display.MirrorsDisplayId == sourceDisplayId)];
 
     /// <summary>Turns mirroring off for one display.</summary>
     public static bool ClearMirror(uint displayId)

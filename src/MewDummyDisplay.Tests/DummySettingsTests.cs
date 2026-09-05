@@ -3,9 +3,7 @@ using Aprillz.MewDummyDisplay;
 
 namespace Aprillz.MewDummyDisplay.Tests;
 
-// The serial is the point of these. macOS identifies a display by it and keeps a
-// ColorSync profile per identity forever, so a dummy that draws a fresh serial each run
-// registers as a new monitor every time and leaves a profile behind.
+// The serial is the point of these: it is what keeps one dummy as one display to macOS.
 [TestClass]
 public sealed class DummySettingsTests
 {
@@ -64,9 +62,7 @@ public sealed class DummySettingsTests
     [TestMethod]
     public void GateReadsAsOpenWhenTheFileNeverStatedIt()
     {
-        // The value is nullable so that "not written" is distinct from "off". A bool
-        // defaulting to true would not survive the source generated serializer, which
-        // skips property initializers and hands back false for a missing key.
+        // Nullable so that "not written" is distinct from "off".
         GeneralSettings never = new();
         GeneralSettings closed = new() { Enabled = false };
 

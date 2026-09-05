@@ -2,9 +2,8 @@ namespace Aprillz.MewDummyDisplay.Interop;
 
 /// <summary>Owns the menu bar item and rebuilds its menu on demand.</summary>
 /// <remarks>
-/// The menu deliberately holds only what gets used repeatedly: a toggle per dummy, the
-/// entries that open windows, and quit. Everything denser lives in a window, which keeps
-/// this the small part of the interop surface.
+/// It knows nothing about what the rows mean. Entries arrive built, and this turns them
+/// into NSMenuItems, which keeps the interop surface here small and flat.
 /// </remarks>
 internal sealed class StatusItemHost
 {
