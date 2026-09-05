@@ -19,6 +19,8 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     private Window? _window;
     private StackPanel? _dummyList;
     private StackPanel? _systemList;
+    private ToggleSwitch? _masterSwitch;
+    private bool _updatingMaster;
     private DispatcherTimer? _configurationWatch;
     private ComboBox? _definitionPicker;
     private CheckBox? _hiDpiToggle;
@@ -136,6 +138,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         => new DockPanel()
             .Spacing(16)
             .Children(
+                BuildMasterSwitch().DockTop(),
                 Heading(MewDummyDisplayStrings.WindowCreateHeading.Value).DockTop(),
                 BuildCreateForm().DockTop(),
                 Heading(MewDummyDisplayStrings.WindowExisting.Value).DockTop(),
@@ -147,6 +150,73 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 _dummyList = list;
                 RefreshDummies();
             });
+
+    /// <summary>
+    /// The gate over every dummy, at the head of the page it governs.
+    /// </summary>
+    /// <remarks>
+    /// It does not set the dummies, it gates them: each keeps its own state through a
+    /// close and reopen. While it is off the cards below are drawn disabled, because
+    /// nothing set there can take effect until it is on again.
+    /// </remarks>
+    private UIElement BuildMasterSwitch()
+        => Card(new Grid()
+            .Columns("Auto,*,Auto")
+            .Children(
+                Icons.Display(20),
+                new StackPanel()
+                    .Column(1)
+                    .Spacing(2)
+                    .Margin(10, 0, 10, 0)
+                    .Children(
+                        new TextBlock().Text(MewDummyDisplayStrings.MenuMaster.Value).Bold(),
+                        Muted(MewDummyDisplayStrings.WindowMasterHint.Value)),
+                new ToggleSwitch()
+                    .Ref(out ToggleSwitch master)
+                    .Column(2)
+                    .CenterVertical()
+                    .IsChecked(manager.IsEnabled)
+                    .OnCheckedChanged(_ => SetEnabled(master.IsChecked))))
+            .Also(() => _masterSwitch = master);
+
+    /// <summary>
+    /// Opens or closes the gate, ignoring the change the refresh itself causes.
+    /// </summary>
+    /// <remarks>
+    /// Writing the switch's state raises its changed event like a click does, and the
+    /// handler refreshes, which writes the state again. Without the guard the first refresh
+    /// after the window opens would report whatever the switch held before it was updated
+    /// and close a gate nobody touched.
+    /// </remarks>
+    private void SetEnabled(bool enabled)
+    {
+        if (_updatingMaster)
+        {
+            return;
+        }
+
+        manager.SetEnabled(enabled);
+        Refresh();
+        onChanged();
+    }
+
+    private void UpdateMasterSwitch()
+    {
+        if (_masterSwitch is null)
+        {
+            return;
+        }
+
+        _updatingMaster = true;
+        try
+        {
+            _masterSwitch.IsChecked(manager.IsEnabled);
+        }
+        finally
+        {
+            _updatingMaster = false;
+        }
+    }
 
     private UIElement BuildSystemPage()
         => new DockPanel()
@@ -274,6 +344,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             return;
         }
 
+        UpdateMasterSwitch();
         _dummyList.Clear();
 
         if (manager.Dummies.Count == 0)
@@ -284,44 +355,71 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         foreach (Dummy dummy in manager.Dummies)
         {
-            _dummyList.Add(BuildDummyCard(dummy));
+            _dummyList.Add(BuildDummyCard(dummy).IsEnabled(manager.IsEnabled));
         }
     }
 
+    /// <summary>
+    /// One dummy. The card has the same shape whether or not a display exists for it, and
+    /// the controls that need one are disabled instead of the card losing them, so nothing
+    /// moves when a dummy is switched off.
+    /// </summary>
     private Border BuildDummyCard(Dummy dummy)
     {
-        if (!dummy.IsConnected)
-        {
-            return BuildDisconnectedCard(dummy);
-        }
-
-        DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
+        bool live = dummy.IsConnected;
 
         // The display is already created with a curated set of sizes, so this only drops
         // the low resolution twin of each one: supplying a Retina resolution is why a dummy
         // exists, and showing both variants of every size doubles the list for nothing.
-        List<DisplayMode> modes = [.. dummy.Modes()
-            .Where(mode => mode.IsHiDpi)
-            .DistinctBy(mode => (mode.Width, mode.Height))
-            .OrderBy(mode => (long)mode.Width * mode.Height)];
-        if (modes.Count == 0)
+        //
+        // Largest first, because that is the end of the list anyone is here for.
+        //
+        // A display that is off reports no modes, so its sizes come from the definition it
+        // was built from, which is where the display's own list came from in the first place.
+        List<DisplayMode> modes = live
+            ? [.. dummy.Modes()
+                .Where(mode => mode.IsHiDpi)
+                .DistinctBy(mode => (mode.Width, mode.Height))
+                .OrderByDescending(mode => (long)mode.Width * mode.Height)]
+            : [];
+        if (live && modes.Count == 0)
         {
             modes = [.. dummy.Modes()
                 .DistinctBy(mode => (mode.Width, mode.Height))
-                .OrderBy(mode => (long)mode.Width * mode.Height)];
+                .OrderByDescending(mode => (long)mode.Width * mode.Height)];
+        }
+        if (!live)
+        {
+            modes = [.. dummy.Spec.Definition
+                .CommonResolutions(dummy.Spec.ResolutionCount)
+                .Select(size => new DisplayMode
+                {
+                    Width = size.Width,
+                    Height = size.Height,
+                    PixelWidth = size.Width * 2,
+                    PixelHeight = size.Height * 2,
+                    RefreshRate = DummySpec.FIXED_REFRESH_RATE,
+                    ModeId = 0,
+                    Source = DisplayModeSource.Public,
+                })
+                .OrderByDescending(mode => (long)mode.Width * mode.Height)];
         }
 
-        int current = modes.FindIndex(mode => mode.Width == info.Width && mode.Height == info.Height);
+        int current = -1;
+        string detail = $"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}";
+        if (live)
+        {
+            DisplayInfo info = DisplayCatalog.Describe(dummy.DisplayId);
+            current = modes.FindIndex(mode => mode.Width == info.Width && mode.Height == info.Height);
+            detail = $"{dummy.Spec.Definition.Id}  {info.Width}x{info.Height}" +
+                (info.IsHiDpi ? $"  HiDPI {info.PixelWidth}x{info.PixelHeight}" : "") +
+                MirrorSuffix(dummy);
+        }
 
         return Card(new StackPanel()
             .Spacing(10)
             .Children(
-                PowerHeader(
-                    dummy,
-                    Icons.Display(20),
-                    $"{dummy.Spec.Definition.Id}  {info.Width}x{info.Height}" +
-                        (info.IsHiDpi ? $"  HiDPI {info.PixelWidth}x{info.PixelHeight}" : "") +
-                        MirrorSuffix(dummy)),
+                PowerHeader(dummy, live ? Icons.Display(20) : Icons.DisplayOutline(20), detail),
                 new Grid()
                     .Columns("Auto,*,Auto")
                     .Rows("Auto,Auto,Auto,Auto")
@@ -333,10 +431,12 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                             .Ref(out ComboBox resolution)
                             .Column(1)
                             .Items([.. modes.Select(mode => $"{mode.Width} x {mode.Height}")])
-                            .SelectedIndex(Math.Max(0, current)),
+                            .SelectedIndex(Math.Max(0, current))
+                            .IsEnabled(live),
                         new Button()
                             .Column(2)
                             .Content(MewDummyDisplayStrings.WindowApply.Value)
+                            .IsEnabled(live)
                             .OnClick(() => ApplyResolution(dummy, modes, resolution.SelectedIndex)),
                         new TextBlock().Text(MewDummyDisplayStrings.WindowName.Value).Row(1).CenterVertical(),
                         new TextBox().Ref(out TextBox rename).Row(1).Column(1).Text(dummy.Name),
@@ -345,7 +445,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                             .Column(2)
                             .Content(MewDummyDisplayStrings.WindowRename.Value)
                             .OnClick(() => RenameDummy(dummy, rename.Text)),
-                        .. MirrorRows(dummy, row: 2),
+                        .. MirrorRows(dummy, row: 2, isEnabled: live),
                     ])));
     }
 
@@ -358,7 +458,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// what mirrors the dummy. Naming the monitor in the list, rather than offering an on
     /// and off button against an unnamed "main display", is what makes that readable.
     /// </remarks>
-    private Element[] MirrorRows(Dummy dummy, int row)
+    private Element[] MirrorRows(Dummy dummy, int row, bool isEnabled)
     {
         List<DisplayInfo> candidates =
         [
@@ -383,6 +483,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 .ColumnSpan(2)
                 .Items([.. options])
                 .SelectedIndex(Math.Max(0, selected))
+                .IsEnabled(isEnabled)
                 .OnSelectionChanged(value => ApplyMirror(dummy, candidates, options.IndexOf(value as string ?? ""))),
             Muted(MewDummyDisplayStrings.WindowMirrorHint.Value).Row(row + 1).Column(1).ColumnSpan(2),
         ];
@@ -411,12 +512,6 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             : "  " + string.Format(MewDummyDisplayStrings.DummyMirroring.Value, DisplayName(showingIt));
     }
 
-    /// <summary>A dummy that is defined but turned off has no display to describe.</summary>
-    private Border BuildDisconnectedCard(Dummy dummy)
-        => Card(new StackPanel()
-            .Spacing(10)
-            .Children(
-                PowerHeader(dummy, Icons.DisplayOutline(20), $"{dummy.Spec.Definition.Id}  {MewDummyDisplayStrings.DummyOff.Value}")));
 
     /// <summary>
     /// Card header: icon, name, one line of detail, a flat remove button, and the switch
@@ -448,7 +543,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 new ToggleSwitch()
                     .Column(3)
                     .CenterVertical()
-                    .IsChecked(dummy.IsConnected)
+                    .IsChecked(dummy.IsEnabled)
                     .OnCheckedChanged(_ => ToggleConnected(dummy)));
 
     private void ToggleConnected(Dummy dummy)

@@ -123,7 +123,8 @@ internal sealed class MenuBarController : IDisposable
         return new MenuEntry
         {
             Title = $"{dummy.Name}  ({detail})",
-            IsChecked = dummy.IsConnected,
+            IsChecked = dummy.IsEnabled,
+            IsEnabled = _manager.IsEnabled,
             UseSwitch = true,
             Handler = () => Toggle(dummy),
         };
@@ -137,23 +138,19 @@ internal sealed class MenuBarController : IDisposable
     /// keeps that position whenever there is anything to switch, rather than appearing
     /// once some number of dummies is reached.
     ///
-    /// The switch reads as "all of them are on", so it is on only when none is left off,
-    /// and the count says what a two state switch cannot when some are on and some are not.
-    /// Selecting it turns them all on unless they already are, in which case it turns them
-    /// all off, which is what a master switch is for.
+    /// It gates the dummies rather than setting them. Turning it off disconnects every
+    /// display and leaves each dummy's own state alone, so turning it back on returns the
+    /// arrangement that was there rather than switching everything on. While it is off the
+    /// rows below are drawn greyed, because nothing they say can take effect.
     /// </remarks>
     private MenuEntry AllEntry()
     {
-        int total = _manager.Dummies.Count;
-        int on = _manager.Dummies.Count(dummy => dummy.IsConnected);
-        string detail = string.Format(MewDummyDisplayStrings.MenuAllOnCount.Value, on, total);
-
         return new MenuEntry
         {
-            Title = $"{MewDummyDisplayStrings.MenuMaster.Value}  ({detail})",
-            IsChecked = on == total,
+            Title = MewDummyDisplayStrings.MenuMaster.Value,
+            IsChecked = _manager.IsEnabled,
             UseSwitch = true,
-            Handler = () => SetAll(on < total),
+            Handler = () => SetEnabled(!_manager.IsEnabled),
         };
     }
 
@@ -164,26 +161,10 @@ internal sealed class MenuBarController : IDisposable
         OnChanged();
     }
 
-    /// <summary>Connects or disconnects every dummy, skipping the ones already there.</summary>
-    private void SetAll(bool connected)
+    /// <summary>Opens or closes the gate over every dummy.</summary>
+    internal void SetEnabled(bool enabled)
     {
-        foreach (Dummy dummy in _manager.Dummies)
-        {
-            if (dummy.IsConnected == connected)
-            {
-                continue;
-            }
-
-            if (connected)
-            {
-                _manager.Connect(dummy);
-            }
-            else
-            {
-                _manager.Disconnect(dummy);
-            }
-        }
-
+        _manager.SetEnabled(enabled);
         _manageWindow.Refresh();
         OnChanged();
     }

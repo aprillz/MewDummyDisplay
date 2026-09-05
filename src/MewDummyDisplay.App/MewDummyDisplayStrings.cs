@@ -40,13 +40,14 @@ public static class MewDummyDisplayStrings
     /// does rather than any one display.
     /// </summary>
     public static ObservableValue<string> MenuMaster { get; } = Define("MewDummyDisplay");
-    public static ObservableValue<string> MenuAllOnCount { get; } = Define("{0} of {1} on");
     public static ObservableValue<string> MenuQuit { get; } = Define("Quit MewDummyDisplay");
     public static ObservableValue<string> MenuUnsupported { get; } = Define("Virtual displays are unavailable on this system");
 
     // Window
     public static ObservableValue<string> MenuManage { get; } = Define("Manage dummy displays...");
     public static ObservableValue<string> WindowTitle { get; } = Define("MewDummyDisplay");
+    public static ObservableValue<string> WindowMasterHint { get; } = Define(
+        "Off disconnects every dummy display and remembers which ones were on.");
     public static ObservableValue<string> WindowCreateHeading { get; } = Define("Create a dummy display");
     public static ObservableValue<string> WindowAspectRatio { get; } = Define("Aspect ratio");
     public static ObservableValue<string> WindowHiDpi { get; } = Define("HiDPI (Retina)");

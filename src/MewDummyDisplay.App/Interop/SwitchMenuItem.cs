@@ -25,19 +25,19 @@ internal static class SwitchMenuItem
     internal static bool IsAvailable => AppKitInterop.NSSwitch != 0;
 
     /// <summary>Builds the view for a row and returns it, already holding the switch.</summary>
-    internal static nint BuildView(string label, bool isOn, long tag)
+    internal static nint BuildView(string label, bool isOn, long tag, bool isEnabled = true)
     {
         nint view = AppKitInterop.SendPtr_Rect(
             ObjC.SendPtr(AppKitInterop.NSView, ObjC.SelAlloc),
             AppKitInterop.SelInitWithFrame,
             new CGRect(0, 0, ROW_WIDTH, ROW_HEIGHT));
 
-        AddLabel(view, label);
-        AddSwitch(view, isOn, tag);
+        AddLabel(view, label, isEnabled);
+        AddSwitch(view, isOn, tag, isEnabled);
         return view;
     }
 
-    private static void AddLabel(nint view, string label)
+    private static void AddLabel(nint view, string label, bool isEnabled)
     {
         nint field = AppKitInterop.SendPtr_Rect(
             ObjC.SendPtr(AppKitInterop.NSTextField, ObjC.SelAlloc),
@@ -54,11 +54,19 @@ internal static class SwitchMenuItem
         AppKitInterop.SendVoid_Byte(field, AppKitInterop.SelSetEditable, 0);
         AppKitInterop.SendVoid_Byte(field, AppKitInterop.SelSetSelectable, 0);
 
+        // A disabled row is drawn by the label's own colour, since an NSTextField in a
+        // custom view is not part of the menu item's enabled state.
+        if (!isEnabled)
+        {
+            ObjC.SendVoid_Ptr(field, ObjC.Sel("setTextColor:"),
+                ObjC.SendPtr(AppKitInterop.NSColor, ObjC.Sel("disabledControlTextColor")));
+        }
+
         ObjC.SendVoid_Ptr(view, AppKitInterop.SelAddSubview, field);
         ObjC.Release(field);
     }
 
-    private static void AddSwitch(nint view, bool isOn, long tag)
+    private static void AddSwitch(nint view, bool isOn, long tag, bool isEnabled)
     {
         nint control = AppKitInterop.SendPtr_Rect(
             ObjC.SendPtr(AppKitInterop.NSSwitch, ObjC.SelAlloc),
@@ -66,6 +74,7 @@ internal static class SwitchMenuItem
             new CGRect(ROW_WIDTH - SWITCH_WIDTH - SWITCH_RIGHT_INSET, 2, SWITCH_WIDTH, SWITCH_HEIGHT));
 
         AppKitInterop.SendVoid_Long(control, AppKitInterop.SelSetState, isOn ? 1 : 0);
+        AppKitInterop.SendVoid_Byte(control, ObjC.Sel("setEnabled:"), (byte)(isEnabled ? 1 : 0));
         AppKitInterop.SendVoid_Long(control, AppKitInterop.SelSetTag, tag);
         ObjC.SendVoid_Ptr(control, AppKitInterop.SelSetTarget, MenuActionTarget.Instance);
         ObjC.SendVoid_Ptr(control, AppKitInterop.SelSetAction, MenuActionTarget.Selector);

@@ -78,7 +78,8 @@ internal sealed class StatusItemHost
                 ObjC.SendVoid_Ptr(item, AppKitInterop.SelSetTarget, MenuActionTarget.Instance);
                 AppKitInterop.SendVoid_Long(item, AppKitInterop.SelSetTag, MenuActionTarget.Register(entry.Handler));
             }
-            else
+
+            if (entry.Handler is null || !entry.IsEnabled)
             {
                 AppKitInterop.SendBool_Long(item, AppKitInterop.SelSetEnabled, 0);
             }
@@ -88,7 +89,7 @@ internal sealed class StatusItemHost
                 // The row draws itself: the switch inside carries the same tag, so a flip
                 // dispatches through the shared action target like any other row.
                 long tag = AppKitInterop.SendLong(item, AppKitInterop.SelTag);
-                nint view = SwitchMenuItem.BuildView(entry.Title, entry.IsChecked, tag);
+                nint view = SwitchMenuItem.BuildView(entry.Title, entry.IsChecked, tag, entry.IsEnabled);
                 ObjC.SendVoid_Ptr(item, AppKitInterop.SelSetView, view);
                 ObjC.Release(view);
             }
@@ -118,6 +119,12 @@ internal sealed record MenuEntry
     internal bool IsChecked { get; init; }
 
     internal bool IsSeparator { get; init; }
+
+    /// <summary>
+    /// False draws the row greyed and ignores selection, while it still carries a handler
+    /// so that a switch row keeps its switch instead of falling back to a check mark.
+    /// </summary>
+    internal bool IsEnabled { get; init; } = true;
 
     /// <summary>Draw the row with an NSSwitch instead of a check mark.</summary>
     internal bool UseSwitch { get; init; }
