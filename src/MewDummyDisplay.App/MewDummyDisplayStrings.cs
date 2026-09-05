@@ -35,7 +35,11 @@ public static class MewDummyDisplayStrings
     // Menu structure
     public static ObservableValue<string> MenuNoDummies { get; } = Define("No dummy displays yet");
     public static ObservableValue<string> MenuHint { get; } = Define("Select a display to turn it on or off");
-    public static ObservableValue<string> MenuAllDisplays { get; } = Define("All displays");
+    /// <summary>
+    /// The master row is named after the product, because it switches what the product
+    /// does rather than any one display.
+    /// </summary>
+    public static ObservableValue<string> MenuMaster { get; } = Define("MewDummyDisplay");
     public static ObservableValue<string> MenuAllOnCount { get; } = Define("{0} of {1} on");
     public static ObservableValue<string> MenuQuit { get; } = Define("Quit MewDummyDisplay");
     public static ObservableValue<string> MenuUnsupported { get; } = Define("Virtual displays are unavailable on this system");

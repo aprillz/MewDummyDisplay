@@ -83,6 +83,7 @@ dotnet run --project src/MewDummyDisplay.Cli -- list
 | `src/MewDummyDisplay.Tests/` | 테스트 |
 | `src/Shared/ObjCRuntime/` | 라이브러리와 앱이 함께 쓰는 Objective-C 헬퍼 |
 | `build/` | 패키징 |
+| `docs/` | macOS 쪽에서 겪은 것들. [ColorSync 등록부](docs/colorsync.md) |
 
 ## 라이선스
 

@@ -68,17 +68,14 @@ internal sealed class MenuBarController : IDisposable
         }
         else
         {
+            // The master switch leads, because it is what the application as a whole does.
+            entries.Add(AllEntry());
+            entries.Add(MenuEntry.Separator);
             entries.Add(new MenuEntry { Title = MewDummyDisplayStrings.MenuHint.Value });
             foreach (Dummy dummy in _manager.Dummies)
             {
                 entries.Add(DummyEntry(dummy));
             }
-        }
-
-        if (_manager.Dummies.Count > 1)
-        {
-            entries.Add(MenuEntry.Separator);
-            entries.Add(AllEntry());
         }
 
         entries.Add(MenuEntry.Separator);
@@ -133,10 +130,13 @@ internal sealed class MenuBarController : IDisposable
     }
 
     /// <summary>
-    /// The row that turns every dummy on or off at once. Only worth showing once there is
-    /// more than one, because with a single dummy it would repeat the row above it.
+    /// The row at the top that turns every dummy on or off at once.
     /// </summary>
     /// <remarks>
+    /// It is the master switch for what the application does, so it leads the menu and
+    /// keeps that position whenever there is anything to switch, rather than appearing
+    /// once some number of dummies is reached.
+    ///
     /// The switch reads as "all of them are on", so it is on only when none is left off,
     /// and the count says what a two state switch cannot when some are on and some are not.
     /// Selecting it turns them all on unless they already are, in which case it turns them
@@ -150,7 +150,7 @@ internal sealed class MenuBarController : IDisposable
 
         return new MenuEntry
         {
-            Title = $"{MewDummyDisplayStrings.MenuAllDisplays.Value}  ({detail})",
+            Title = $"{MewDummyDisplayStrings.MenuMaster.Value}  ({detail})",
             IsChecked = on == total,
             UseSwitch = true,
             Handler = () => SetAll(on < total),
