@@ -86,6 +86,9 @@ if [ "$MODE" = "release" ]; then
     fi
 else
     cp -R "$SOURCE_DIR"/* "$APP/Contents/MacOS/"
+    # Debug symbols are not code, and codesign refuses a bundle holding a subcomponent it
+    # cannot sign, so they do not go in.
+    find "$APP/Contents/MacOS" -name '*.pdb' -delete
 fi
 
 cp "$REPO_ROOT/NOTICE" "$APP/Contents/Resources/NOTICE"
@@ -130,7 +133,12 @@ cat > "$ENTITLEMENTS" <<'PLIST'
 </plist>
 PLIST
 
-codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP" 2>/dev/null
+# --deep signs the nested Mach-O files first. A release bundle is one binary and does not
+# need it, but a Debug one carries the managed assemblies in Contents/MacOS, where codesign
+# takes every file for a subcomponent and refuses the bundle while any is unsigned.
+#
+# Failing here would leave a bundle without the sandbox entitlement, so it is not swallowed.
+codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "$APP"
 
 if [ "$MODE" = "release" ]; then
     ARCHIVE="$DIST/MewDummyDisplay-$VERSION-macos.zip"
