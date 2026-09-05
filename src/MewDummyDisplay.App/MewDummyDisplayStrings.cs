@@ -47,18 +47,13 @@ public static class MewDummyDisplayStrings
     public static ObservableValue<string> MenuManage { get; } = Define("Manage dummy displays...");
     public static ObservableValue<string> WindowTitle { get; } = Define("MewDummyDisplay");
     public static ObservableValue<string> WindowMasterHint { get; } = Define(
-        "Off disconnects every dummy display and remembers which ones were on.");
-    public static ObservableValue<string> WindowCreateHeading { get; } = Define("Create a dummy display");
-    public static ObservableValue<string> WindowAspectRatio { get; } = Define("Aspect ratio");
+        "Off disconnects every dummy and remembers which were on.");
     public static ObservableValue<string> WindowHiDpi { get; } = Define("HiDPI (Retina)");
     public static ObservableValue<string> WindowCreate { get; } = Define("Create");
-    public static ObservableValue<string> WindowExisting { get; } = Define("Dummy displays");
     public static ObservableValue<string> WindowNone { get; } = Define("None yet. Create one above.");
     public static ObservableValue<string> WindowResolution { get; } = Define("Resolution");
     public static ObservableValue<string> WindowApply { get; } = Define("Apply");
     public static ObservableValue<string> WindowMirrorLabel { get; } = Define("Mirror to");
-    public static ObservableValue<string> WindowMirrorHint { get; } = Define(
-        "The monitor shows this dummy's picture and runs at the dummy's resolution.");
     public static ObservableValue<string> WindowMirrorNone { get; } = Define("None");
     public static ObservableValue<string> WindowRemove { get; } = Define("Remove");
     public static ObservableValue<string> WindowRemoveConfirm { get; } = Define("Remove {0}?");
@@ -71,7 +66,7 @@ public static class MewDummyDisplayStrings
 
     // Create form
     public static ObservableValue<string> WindowName { get; } = Define("Name");
-    public static ObservableValue<string> WindowNamePlaceholder { get; } = Define("Leave empty to name it automatically");
+    public static ObservableValue<string> WindowNamePlaceholder { get; } = Define("Name (optional)");
     public static ObservableValue<string> WindowRename { get; } = Define("Rename");
     public static ObservableValue<string> WindowRenameHint { get; } = Define("Renaming recreates the display, because macOS fixes the name when it is created.");
 
@@ -80,7 +75,6 @@ public static class MewDummyDisplayStrings
     public static ObservableValue<string> SystemMain { get; } = Define("Main");
     public static ObservableValue<string> SystemVirtual { get; } = Define("Virtual");
     public static ObservableValue<string> SystemModes { get; } = Define("modes");
-    public static ObservableValue<string> SystemRefresh { get; } = Define("Refresh");
 
     // About page
     public static ObservableValue<string> AboutSummary { get; } = Define(

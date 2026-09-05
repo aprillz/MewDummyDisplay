@@ -39,6 +39,20 @@ dotnet test src/MewDummyDisplay.Tests
 
 결과는 `.artifacts/dist/` 에 나온다.
 
+## 실행
+
+```
+open .artifacts/dist/MewDummyDisplay.app                        # 메뉴 바에만 뜬다
+open .artifacts/dist/MewDummyDisplay.app --args --open-window   # 관리 창까지 연다
+.artifacts/dist/MewDummyDisplay.app/Contents/MacOS/MewDummyDisplay --self-test
+```
+
+`--open-window` 는 개발용이다. 관리 창은 평소 상태 표시줄을 눌러야 열리는데, 그것은
+사람만 할 수 있어서 화면을 확인하려면 매번 손이 간다.
+
+터미널에서 바이너리를 직접 실행하면 창이 뒤에 열린다. 창 서버는 사용자가 실행한
+응용 프로그램에만 활성화를 허락하므로, 화면을 볼 때는 `open` 으로 띄운다.
+
 배포본은 NativeAOT 다. 아키텍처마다 하나씩 만든 Mach-O 를 `lipo` 로 합쳐 유니버설
 바이너리를 만들기 때문에, Apple Silicon 과 Intel 이 같은 파일 하나를 받는다. 런타임을
 따로 설치할 필요가 없다.

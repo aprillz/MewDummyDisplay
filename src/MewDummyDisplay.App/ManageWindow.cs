@@ -136,14 +136,12 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
     private UIElement BuildDummyPage()
         => new DockPanel()
-            .Spacing(16)
+            .Spacing(20)
             .Children(
-                BuildMasterSwitch().DockTop(),
-                Heading(MewDummyDisplayStrings.WindowCreateHeading.Value).DockTop(),
+                BuildPageHeader().DockTop(),
                 BuildCreateForm().DockTop(),
-                Heading(MewDummyDisplayStrings.WindowExisting.Value).DockTop(),
                 new ScrollViewer()
-                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)))
+                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(10)))
             .Also(() =>
             {
                 // Pages are built when first selected, after the window's initial refresh.
@@ -152,31 +150,33 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             });
 
     /// <summary>
-    /// The gate over every dummy, at the head of the page it governs.
+    /// The head of the page: what the application is, and the gate over every dummy.
     /// </summary>
     /// <remarks>
-    /// It does not set the dummies, it gates them: each keeps its own state through a
-    /// close and reopen. While it is off the cards below are drawn disabled, because
-    /// nothing set there can take effect until it is on again.
+    /// Drawn as the page's own header rather than another card, because it governs the
+    /// cards below and should not read as one of them. It does not set the dummies, it
+    /// gates them: each keeps its own state through a close and reopen, and while it is
+    /// off the cards are drawn disabled, since nothing set there can take effect.
     /// </remarks>
-    private UIElement BuildMasterSwitch()
-        => Card(new Grid()
-            .Columns("Auto,*,Auto")
+    private UIElement BuildPageHeader()
+        => new StackPanel()
+            .Spacing(14)
             .Children(
-                Icons.Display(20),
-                new StackPanel()
-                    .Column(1)
-                    .Spacing(2)
-                    .Margin(10, 0, 10, 0)
+                new Grid()
+                    .Columns("*,Auto")
                     .Children(
-                        new TextBlock().Text(MewDummyDisplayStrings.MenuMaster.Value).Bold(),
-                        Muted(MewDummyDisplayStrings.WindowMasterHint.Value)),
-                new ToggleSwitch()
-                    .Ref(out ToggleSwitch master)
-                    .Column(2)
-                    .CenterVertical()
-                    .IsChecked(manager.IsEnabled)
-                    .OnCheckedChanged(_ => SetEnabled(master.IsChecked))))
+                        new StackPanel()
+                            .Spacing(3)
+                            .Children(
+                                new TextBlock().Text(MewDummyDisplayStrings.MenuMaster.Value).FontSize(15).Bold(),
+                                Muted(MewDummyDisplayStrings.WindowMasterHint.Value)),
+                        new ToggleSwitch()
+                            .Ref(out ToggleSwitch master)
+                            .Column(1)
+                            .CenterVertical()
+                            .IsChecked(manager.IsEnabled)
+                            .OnCheckedChanged(_ => SetEnabled(master.IsChecked))),
+                Hairline())
             .Also(() => _masterSwitch = master);
 
     /// <summary>
@@ -223,14 +223,10 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
             .Spacing(16)
             .Children(
                 Heading(MewDummyDisplayStrings.PageSystem.Value).DockTop(),
-                new StackPanel()
-                    .Horizontal()
-                    .DockTop()
-                    .Children(new Button()
-                        .Content(MewDummyDisplayStrings.SystemRefresh.Value)
-                        .OnClick(RefreshSystemDisplays)),
+                // No refresh button: the window watches the display configuration and
+                // rebuilds this list whenever it changes.
                 new ScrollViewer()
-                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(12)))
+                    .Content(new StackPanel().Ref(out StackPanel list).Spacing(10)))
             .Also(() =>
             {
                 _systemList = list;
@@ -269,42 +265,41 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
     // Create form
 
+    /// <summary>
+    /// Creating a dummy, on one line.
+    /// </summary>
+    /// <remarks>
+    /// It was three rows of label and field, which is a form for something done once in a
+    /// while sitting permanently above the list that is the reason to open this window. The
+    /// controls carry their own meaning here: a ratio, a name, a checkbox that says HiDPI,
+    /// and the button that does it.
+    /// </remarks>
     private UIElement BuildCreateForm()
         => Card(new Grid()
-            .Columns("Auto,*")
-            .Rows("Auto,Auto")
+            .Columns("Auto,*,Auto,Auto")
             .Spacing(10)
             .Children(
-                new TextBlock().Text(MewDummyDisplayStrings.WindowAspectRatio.Value).CenterVertical(),
-                // Each input keeps its companion in a dock of its own, so the companions do
-                // not share a grid column and neither one sizes the other's row.
-                new DockPanel()
+                // Wide enough for the longest entry, "21.3:9 (UltraWide)". Sizing to the
+                // selection instead would make the row jump every time it changed.
+                new ComboBox()
+                    .Ref(out ComboBox picker)
+                    .Width(180)
+                    .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
+                    .SelectedIndex(0),
+                new TextBox()
+                    .Ref(out TextBox nameBox)
                     .Column(1)
-                    .Spacing(10)
-                    .Children(
-                        new CheckBox()
-                            .Ref(out CheckBox hiDpi)
-                            .DockRight()
-                            .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
-                            .IsChecked(true)
-                            .CenterVertical(),
-                        new ComboBox()
-                            .Ref(out ComboBox picker)
-                            .Items([.. _definitions.Select(MewDummyDisplayStrings.Definition)])
-                            .SelectedIndex(0)),
-                new TextBlock().Text(MewDummyDisplayStrings.WindowName.Value).Row(1).CenterVertical(),
-                new DockPanel()
-                    .Row(1)
-                    .Column(1)
-                    .Spacing(10)
-                    .Children(
-                        new Button()
-                            .DockRight()
-                            .Content(MewDummyDisplayStrings.WindowCreate.Value)
-                            .OnClick(CreateDummy),
-                        new TextBox()
-                            .Ref(out TextBox nameBox)
-                            .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value))))
+                    .Placeholder(MewDummyDisplayStrings.WindowNamePlaceholder.Value),
+                new CheckBox()
+                    .Ref(out CheckBox hiDpi)
+                    .Column(2)
+                    .Content(MewDummyDisplayStrings.WindowHiDpi.Value)
+                    .IsChecked(true)
+                    .CenterVertical(),
+                new Button()
+                    .Column(3)
+                    .Content(MewDummyDisplayStrings.WindowCreate.Value)
+                    .OnClick(CreateDummy)))
             .Also(() =>
             {
                 _definitionPicker = picker;
@@ -349,7 +344,9 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
         if (manager.Dummies.Count == 0)
         {
-            _dummyList.Add(Muted(MewDummyDisplayStrings.WindowNone.Value));
+            _dummyList.Add(new Border()
+                .Padding(24)
+                .Child(Muted(MewDummyDisplayStrings.WindowNone.Value).Center()));
             return;
         }
 
@@ -422,7 +419,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 PowerHeader(dummy, live ? Icons.Display(20) : Icons.DisplayOutline(20), detail),
                 new Grid()
                     .Columns("Auto,*,Auto")
-                    .Rows("Auto,Auto,Auto,Auto")
+                    .Rows("Auto,Auto,Auto")
                     .Spacing(8)
                     .Children(
                     [
@@ -453,10 +450,11 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
     /// Chooses which monitor shows this dummy's picture.
     /// </summary>
     /// <remarks>
-    /// Worth stating plainly because the direction is the whole point and easy to invert.
-    /// A dummy supplies a resolution the monitor cannot offer by itself, so the monitor is
-    /// what mirrors the dummy. Naming the monitor in the list, rather than offering an on
-    /// and off button against an unnamed "main display", is what makes that readable.
+    /// The direction is the whole point and easy to invert. A dummy supplies a resolution
+    /// the monitor cannot offer by itself, so the monitor is what mirrors the dummy. Naming
+    /// the monitors in the list, rather than an on and off button against an unnamed "main
+    /// display", is what carries that, and it carries it in every card without a sentence
+    /// underneath repeating itself once per dummy.
     /// </remarks>
     private Element[] MirrorRows(Dummy dummy, int row, bool isEnabled)
     {
@@ -477,6 +475,8 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
         return
         [
             new TextBlock().Text(MewDummyDisplayStrings.WindowMirrorLabel.Value).Row(row).CenterVertical(),
+            // Spans the button column too. Nothing acts on this row, so stopping where the
+            // rows above stop would leave the corner of the card empty.
             new ComboBox()
                 .Row(row)
                 .Column(1)
@@ -485,7 +485,6 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                 .SelectedIndex(Math.Max(0, selected))
                 .IsEnabled(isEnabled)
                 .OnSelectionChanged(value => ApplyMirror(dummy, candidates, options.IndexOf(value as string ?? ""))),
-            Muted(MewDummyDisplayStrings.WindowMirrorHint.Value).Row(row + 1).Column(1).ColumnSpan(2),
         ];
     }
 
@@ -538,7 +537,7 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
                     .Content(Icons.Remove())
                     .ToolTip(MewDummyDisplayStrings.WindowRemove.Value)
                     .CenterVertical()
-                    .Margin(0, 0, 6, 0)
+                    .Margin(0, 0, 18, 0)
                     .OnClick(() => Remove(dummy)),
                 new ToggleSwitch()
                     .Column(3)
@@ -668,8 +667,18 @@ internal sealed class ManageWindow(DummyManager manager, Action onChanged)
 
     private static TextBlock Heading(string text) => new TextBlock().Text(text).FontSize(16).Bold();
 
+    /// <summary>
+    /// Secondary text. Not the disabled colour: a disabled card is a state the reader has
+    /// to be able to tell apart from a line that is merely less important.
+    /// </summary>
     private static TextBlock Muted(string text)
-        => new TextBlock().Text(text).WithTheme((theme, block) => block.Foreground(theme.Palette.DisabledText));
+        => new TextBlock().Text(text).WithTheme((theme, block) => block.Foreground(theme.Palette.PlaceholderText));
+
+    /// <summary>A one pixel rule in the same colour the cards use for their edge.</summary>
+    private static Border Hairline()
+        => new Border()
+            .Height(1)
+            .WithTheme((theme, border) => border.Background(theme.Palette.ControlBorder));
 
     private static Border Card(UIElement content)
         => new Border()

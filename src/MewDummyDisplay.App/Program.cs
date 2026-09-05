@@ -23,10 +23,10 @@ internal static class Program
             return HostSpike.Run(interactive: args.Contains("--interactive"));
         }
 
-        return Run(selfTest: args.Contains("--self-test"));
+        return Run(selfTest: args.Contains("--self-test"), openWindow: args.Contains("--open-window"));
     }
 
-    private static int Run(bool selfTest)
+    private static int Run(bool selfTest, bool openWindow = false)
     {
         MacOSPlatform.Register();
         MewVGMacOSBackend.Register();
@@ -43,6 +43,16 @@ internal static class Program
                 AppKitInterop.ApplyAccessoryPolicy();
 
                 controller = new MenuBarController(persist: !selfTest);
+
+                // A development aid: the window is otherwise only reachable through the
+                // status item, which nothing but a person can click.
+                if (openWindow)
+                {
+                    MenuBarController opener = controller;
+                    DispatcherTimer show = new(TimeSpan.FromMilliseconds(400));
+                    show.Tick += () => { show.Stop(); opener.ManageWindow.Show(); };
+                    show.Start();
+                }
 
                 if (selfTest)
                 {
