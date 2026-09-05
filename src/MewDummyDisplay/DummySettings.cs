@@ -34,7 +34,10 @@ public sealed record DummyRecord
 
     public bool HiDpi { get; init; } = true;
 
-    /// <summary>Whether it was turned on when the settings were written.</summary>
+    /// <summary>
+    /// This dummy's own state. Independent of <see cref="GeneralSettings.Enabled"/>, so a
+    /// dummy that was on before the gate was closed is on again when it opens.
+    /// </summary>
     public bool Connected { get; init; } = true;
 
     public int ResolutionCount { get; init; } = 8;
@@ -44,4 +47,22 @@ public sealed record DummyRecord
 public sealed record GeneralSettings
 {
     public bool Enable16K { get; init; }
+
+    /// <summary>
+    /// The master gate. False leaves every dummy defined and none of them connected.
+    /// Null means the file predates the gate, which reads as open.
+    /// </summary>
+    /// <remarks>
+    /// Nullable rather than a bool that defaults to true, because the source generated
+    /// serializer does not run property initializers: a file without the key came back
+    /// false, and every dummy stayed off on the first run after the gate was added.
+    /// </remarks>
+    public bool? Enabled { get; init; }
+
+    /// <summary>
+    /// The gate as the manager reads it, with an absent value open. Internal so that it
+    /// stays out of the serialized shape: it is derived from <see cref="Enabled"/> and
+    /// writing it to the file would be a second, disagreeing copy of the same fact.
+    /// </summary>
+    internal bool IsGateOpen => Enabled ?? true;
 }

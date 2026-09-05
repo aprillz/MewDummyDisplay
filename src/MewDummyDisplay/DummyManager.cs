@@ -26,6 +26,7 @@ public sealed class DummyManager : IDisposable
     private readonly Lock _gate = new();
     private readonly List<Dummy> _dummies = [];
     private DateTime _lastOperationUtc = DateTime.MinValue;
+    private GeneralSettings _general = new();
     private bool _disposed;
 
     /// <summary>Time <see cref="Create"/> waits for registration. Zero returns immediately.</summary>
@@ -37,6 +38,33 @@ public sealed class DummyManager : IDisposable
     public static bool IsSupported => MissingSurface.Count == 0;
 
     public IReadOnlyList<Dummy> Dummies => _dummies;
+
+    /// <summary>
+    /// The master gate over every dummy.
+    /// </summary>
+    /// <remarks>
+    /// It gates rather than overwrites. Closing it disconnects every dummy and leaves each
+    /// one's <see cref="Dummy.IsEnabled"/> alone, so opening it again returns them to the
+    /// arrangement they were in rather than turning everything on.
+    /// </remarks>
+    public bool IsEnabled { get; private set; } = true;
+
+    /// <summary>Opens or closes the gate, bringing every dummy in line with it.</summary>
+    public void SetEnabled(bool enabled)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (IsEnabled == enabled)
+        {
+            return;
+        }
+
+        IsEnabled = enabled;
+        foreach (Dummy dummy in _dummies)
+        {
+            Apply(dummy);
+        }
+    }
 
     /// <summary>
     /// Whether to subscribe to display reconfiguration notifications before creating.
@@ -53,7 +81,11 @@ public sealed class DummyManager : IDisposable
     /// Waits up to <see cref="ReadyTimeout"/> for registration; check
     /// <see cref="Dummy.IsReady"/> to tell whether it finished.
     /// </summary>
-    public Dummy? Create(DummySpec spec)
+    /// <param name="enabled">
+    /// The dummy's own state. False defines it without connecting, which is also what
+    /// happens to an enabled one while the gate is closed.
+    /// </param>
+    public Dummy? Create(DummySpec spec, bool enabled = true)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -72,8 +104,8 @@ public sealed class DummyManager : IDisposable
         DummySpec resolved = spec with { SerialNumber = serial };
         string name = resolved.Name is { Length: > 0 } custom ? custom : BuildName(resolved.Definition, serial);
 
-        Dummy dummy = new(resolved, name, OpenDisplay);
-        if (!Connect(dummy))
+        Dummy dummy = new(resolved, name, OpenDisplay) { IsEnabled = enabled };
+        if (IsEnabled && enabled && !ConnectCore(dummy))
         {
             dummy.Dispose();
             return null;
@@ -86,7 +118,9 @@ public sealed class DummyManager : IDisposable
     /// <summary>Writes the current dummies into a settings record.</summary>
     public DummySettings CaptureSettings(GeneralSettings? general = null) => new()
     {
-        General = general ?? new GeneralSettings(),
+        // The gate is the manager's to report; the rest is whatever it was restored with,
+        // so settings the manager does not act on are not dropped by a save.
+        General = (general ?? _general) with { Enabled = IsEnabled },
         Dummies =
         [
             .. _dummies.Select(dummy => new DummyRecord
@@ -95,7 +129,7 @@ public sealed class DummyManager : IDisposable
                 SerialNumber = dummy.SerialNumber,
                 Name = dummy.Spec.Name,
                 HiDpi = dummy.Spec.HiDpi,
-                Connected = dummy.IsConnected,
+                Connected = dummy.IsEnabled,
                 ResolutionCount = dummy.Spec.ResolutionCount,
             }),
         ],
@@ -109,6 +143,9 @@ public sealed class DummyManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        _general = settings.General;
+        IsEnabled = settings.General.IsGateOpen;
+
         foreach (DummyRecord record in settings.Dummies)
         {
             DummyDefinition? definition = DummyDefinitionCatalog.Find(record.DefinitionId, settings.General.Enable16K);
@@ -117,32 +154,69 @@ public sealed class DummyManager : IDisposable
                 continue;
             }
 
-            Dummy? dummy = Create(new DummySpec
-            {
-                Definition = definition,
-                SerialNumber = record.SerialNumber,
-                Name = record.Name,
-                HiDpi = record.HiDpi,
-                ResolutionCount = record.ResolutionCount,
-            });
-
-            if (dummy is not null && !record.Connected)
-            {
-                Disconnect(dummy);
-            }
+            Create(
+                new DummySpec
+                {
+                    Definition = definition,
+                    SerialNumber = record.SerialNumber,
+                    Name = record.Name,
+                    HiDpi = record.HiDpi,
+                    ResolutionCount = record.ResolutionCount,
+                },
+                enabled: record.Connected);
         }
     }
 
-    /// <summary>Connects a dummy that is currently disconnected.</summary>
+    /// <summary>Turns a dummy on. It connects unless the gate is closed.</summary>
     public bool Connect(Dummy dummy)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (dummy.IsConnected)
+        dummy.IsEnabled = true;
+        Apply(dummy);
+        return dummy.IsConnected;
+    }
+
+    /// <summary>Turns a dummy off, keeping its definition.</summary>
+    public void Disconnect(Dummy dummy)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        dummy.IsEnabled = false;
+        Apply(dummy);
+    }
+
+    /// <summary>Flips a dummy's own state. Returns the state it is now in.</summary>
+    public bool Toggle(Dummy dummy)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        dummy.IsEnabled = !dummy.IsEnabled;
+        Apply(dummy);
+        return dummy.IsEnabled;
+    }
+
+    /// <summary>Brings one dummy's display in line with the gate and its own state.</summary>
+    private void Apply(Dummy dummy)
+    {
+        bool wanted = IsEnabled && dummy.IsEnabled;
+        if (wanted == dummy.IsConnected)
         {
-            return true;
+            return;
         }
 
+        if (wanted)
+        {
+            ConnectCore(dummy);
+        }
+        else
+        {
+            DisconnectCore(dummy);
+        }
+    }
+
+    private bool ConnectCore(Dummy dummy)
+    {
         if (WatchReconfiguration)
         {
             DisplayReconfigurationWatcher.Register();
@@ -161,29 +235,10 @@ public sealed class DummyManager : IDisposable
         return true;
     }
 
-    /// <summary>Disconnects a dummy, keeping its definition.</summary>
-    public void Disconnect(Dummy dummy)
+    private void DisconnectCore(Dummy dummy)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        if (!dummy.IsConnected)
-        {
-            return;
-        }
-
         WaitForTurn();
         dummy.Disconnect();
-    }
-
-    /// <summary>Connects a disconnected dummy or disconnects a connected one.</summary>
-    public bool Toggle(Dummy dummy)
-    {
-        if (dummy.IsConnected)
-        {
-            Disconnect(dummy);
-            return false;
-        }
-        return Connect(dummy);
     }
 
     /// <summary>Builds the virtual display for a dummy. Passed to each dummy as its opener.</summary>
@@ -226,18 +281,15 @@ public sealed class DummyManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         DummySpec spec = dummy.Spec with { Name = name };
-        bool wasConnected = dummy.IsConnected;
+        // Its own state carries over, not whether a display happened to exist: a dummy that
+        // is on while the gate is closed must still be on after the rename.
+        bool wasEnabled = dummy.IsEnabled;
         if (!Remove(dummy))
         {
             return null;
         }
 
-        Dummy? replacement = Create(spec);
-        if (replacement is not null && !wasConnected)
-        {
-            Disconnect(replacement);
-        }
-        return replacement;
+        return Create(spec, enabled: wasEnabled);
     }
 
     /// <summary>Releases one dummy.</summary>

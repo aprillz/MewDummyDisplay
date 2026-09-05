@@ -60,4 +60,52 @@ public sealed class DummySettingsTests
         // naming a ratio that no longer exists must be dropped quietly.
         Assert.IsNull(DummyDefinitionCatalog.Find(settings.Dummies[0].DefinitionId));
     }
+
+    [TestMethod]
+    public void GateReadsAsOpenWhenTheFileNeverStatedIt()
+    {
+        // The value is nullable so that "not written" is distinct from "off". A bool
+        // defaulting to true would not survive the source generated serializer, which
+        // skips property initializers and hands back false for a missing key.
+        GeneralSettings never = new();
+        GeneralSettings closed = new() { Enabled = false };
+
+        Assert.IsNull(never.Enabled);
+        Assert.IsTrue(never.IsGateOpen);
+        Assert.IsFalse(closed.IsGateOpen);
+    }
+
+    [TestMethod]
+    public void GateSurvivesARoundTrip()
+    {
+        DummySettings settings = new()
+        {
+            General = new GeneralSettings { Enabled = false, Enable16K = true },
+            Dummies =
+            [
+                new DummyRecord { DefinitionId = "16:9", SerialNumber = 1, Connected = true },
+                new DummyRecord { DefinitionId = "16:10", SerialNumber = 2, Connected = false },
+            ],
+        };
+
+        DummySettings restored = JsonSerializer.Deserialize<DummySettings>(
+            JsonSerializer.Serialize(settings))!;
+
+        // The gate is remembered apart from each dummy's own state, so closing it does not
+        // erase which dummies were on.
+        Assert.IsFalse(restored.General.Enabled);
+        Assert.IsTrue(restored.Dummies[0].Connected);
+        Assert.IsFalse(restored.Dummies[1].Connected);
+    }
+
+    [TestMethod]
+    public void GateDefaultsToOpenWhenTheFileDoesNotMentionIt()
+    {
+        // Settings written before the gate existed must still turn their dummies on.
+        DummySettings restored = JsonSerializer.Deserialize<DummySettings>(
+            """{"schemaVersion":1,"dummies":[],"general":{"enable16K":false}}""")!;
+
+        Assert.IsNull(restored.General.Enabled);
+        Assert.IsTrue(restored.General.IsGateOpen);
+    }
 }

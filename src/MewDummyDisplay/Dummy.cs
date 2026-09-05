@@ -31,6 +31,13 @@ public sealed class Dummy : IDisposable
 
     public uint SerialNumber => Spec.SerialNumber;
 
+    /// <summary>
+    /// Whether this dummy is meant to be on. Its own state, kept apart from whether a
+    /// display exists for it: the manager's gate can be off while this stays true, and
+    /// turning the gate back on is what brings the display back.
+    /// </summary>
+    public bool IsEnabled { get; internal set; } = true;
+
     /// <summary>Whether a virtual display currently exists for this dummy.</summary>
     public bool IsConnected => _display is not null;
 
