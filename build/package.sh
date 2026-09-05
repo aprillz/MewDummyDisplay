@@ -119,11 +119,23 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# The sandbox was verified to allow the private virtual display API, so it stays on.
-# The entitlements file is kept outside the bundle: anything inside Contents becomes a
+# The sandbox was verified to allow the private virtual display API, so a release keeps it
+# on. The entitlements file is kept outside the bundle: anything inside Contents becomes a
 # signed subcomponent and codesign then refuses the bundle.
-ENTITLEMENTS="$DIST/entitlements.plist"
-cat > "$ENTITLEMENTS" <<'PLIST'
+#
+# A Debug bundle is signed without it. Its binary is framework-dependent and finds the
+# runtime under /usr/local/share/dotnet, which the sandbox denies, so a sandboxed Debug
+# bundle does not start at all. Sandbox behaviour therefore has to be checked on a release
+# build, which is self-contained and has nothing to look up.
+#
+# --deep signs the nested Mach-O files first. A release bundle is one binary and does not
+# need it, but a Debug one carries the managed assemblies in Contents/MacOS, where codesign
+# takes every file for a subcomponent and refuses the bundle while any is unsigned.
+#
+# Failing here would leave a release bundle without its entitlement, so it is not swallowed.
+if [ "$MODE" = "release" ]; then
+    ENTITLEMENTS="$DIST/entitlements.plist"
+    cat > "$ENTITLEMENTS" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -132,13 +144,10 @@ cat > "$ENTITLEMENTS" <<'PLIST'
 </dict>
 </plist>
 PLIST
-
-# --deep signs the nested Mach-O files first. A release bundle is one binary and does not
-# need it, but a Debug one carries the managed assemblies in Contents/MacOS, where codesign
-# takes every file for a subcomponent and refuses the bundle while any is unsigned.
-#
-# Failing here would leave a bundle without the sandbox entitlement, so it is not swallowed.
-codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "$APP"
+    codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP"
+else
+    codesign --force --deep --sign - "$APP"
+fi
 
 if [ "$MODE" = "release" ]; then
     ARCHIVE="$DIST/MewDummyDisplay-$VERSION-macos.zip"
