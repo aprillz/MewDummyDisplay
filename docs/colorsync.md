@@ -76,8 +76,9 @@ macOS 는 디스플레이를, 가상이든 실물이든, ColorSync 장치로 등
 
 ## 해결
 
-등록 해제 API 는 듣지 않았다. `ColorSyncDeviceUnregister` 는 공개 API 지만 AnyUser
-범위 항목을 거부한다. root 로 실행해도 마찬가지고, 로그가 이유를 말한다.
+등록 해제 API 는 듣지 않는다. `ColorSyncDeviceUnregister` 는 공개 API 지만 AnyUser
+범위 항목을 거부한다. root 로 실행해도 마찬가지고, 로그가 이유를 말한다. 이 머신에서
+성공한 적이 한 번도 없다.
 
 ```
 ColorSyncXPCDeviceRegistryUtilsSetAnyUserInfo - connection not authorized
@@ -157,7 +158,18 @@ swiftc -O remove-display-devices.swift -o remove-display-devices
 ./remove-display-devices "MewDummy" "Self test"   # 이름으로 골라 dry run
 ```
 
-등록 해제는 위에서 적은 이유로 실패할 수 있다. 그때는 등록부 파일을 치우는 쪽이 확실하다.
+`remove-display-devices --apply` 는 이 머신에서 한 번도 성공하지 못했다. 149 개를
+지우려 했을 때도, 남은 2 개를 지우려 했을 때도, root 로 실행했을 때도 전부 실패했다.
+등록 해제는 목록을 확인하는 용도로만 믿고, 실제로 비우는 것은 등록부 파일을 치우는
+쪽으로 한다.
+
+프로파일 파일은 별개다. 등록부를 비워도 지워지지 않으니 직접 지운다. 실제 모니터의
+것은 남긴다.
+
+```
+cd /Library/ColorSync/Profiles/Displays
+sudo rm -f MewDummy*.icc "Self test-"*.icc "Test 1-"*.icc "Test 2-"*.icc
+```
 
 ## 남은 의문
 
